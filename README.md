@@ -22,9 +22,17 @@ Just double-click **`start_game.bat`** in the project folder! It will automatica
 ## ✨ Features
 
 - **True 3D Glossy Pieces**: 12 unique polysphere pieces (A through L) modeled with Three.js physical materials (`MeshPhysicalMaterial`), featuring realistic clearcoat, candy lacquer shine, bridge connectors, and socket drop shadows.
-- **2D Tray & 3D Pyramid Modes**:
+- **2D Tray, 3D Pyramid & Custom Studio Modes**:
   - **2D Flat Tray**: The classic 11×5 grid (55 holes) where all 12 pieces fit seamlessly.
   - **3D Pyramid Mode**: 5-tier pyramid puzzle board with interactive layer placement.
+  - **Custom Studio Mode (🎨)**:
+    - **Custom Board Dimensions & Shapes**: Design boards of any size (from 3×3 to 14×10) with fewer or more holes than standard.
+    - **Solid Obstacles & Island Holes**: Click/drag in the 2D painter to drill sockets or create solid plastic obstacles (like the 🍩 Donut Island with holes surrounding a solid center obstacle).
+    - **Duplicate Piece Selection**: Choose to have multiple copies of any piece on a single tray (e.g. 2 or 3 of piece B).
+    - **Polysphere Shape Forge (5×5)**: Draw brand new custom polysphere shapes with custom colors.
+    - **Extended Piece Library**: Features monospheres, dominoes, trominoes, alternative pentas, and hexaspheres (M through X).
+    - **Exact-Cover Custom Solver**: Smart Algorithm X solver that handles duplicate pieces, arbitrary non-rectangular boards, and custom shapes for hints and auto-solving.
+    - **Save & Load Boards**: Save your custom board creations to local storage to replay anytime.
 - **Smart Exact-Cover (Algorithm X) Solver**:
   - Built-in exact-cover solver executing in under 20ms.
   - **Hint (💡)**: Solves remaining pieces and places 1 piece to nudge you forward.

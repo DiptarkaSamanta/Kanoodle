@@ -163,9 +163,178 @@ class KanoodleGame {
 
     if (this.mode === '2d') {
       this.init2DBoard();
-    } else {
+    } else if (this.mode === '3d') {
       this.init3DPyramidBoard();
+    } else if (this.mode === 'custom' && this.customConfig) {
+      this.initCustomBoard(this.customConfig);
     }
+  }
+
+  initCustomBoard(config) {
+    this.gridW = config.width;
+    this.gridH = config.height;
+    this.customActiveHoles = new Set(config.activeHoles);
+    this.boardState = Array(this.gridH).fill(null).map(() => Array(this.gridW).fill(null));
+
+    // Mark non-drilled positions as solid plastic obstacles (islands, gaps, borders)
+    for (let r = 0; r < this.gridH; r++) {
+      for (let c = 0; c < this.gridW; c++) {
+        if (!this.customActiveHoles.has(`${r},${c}`)) {
+          this.boardState[r][c] = 'SOLID';
+        }
+      }
+    }
+
+    const spacing = window.SPHERE_SPACING || 2.0;
+    const trayWidth = (this.gridW - 1) * spacing + 3.8;
+    const trayHeight = (this.gridH - 1) * spacing + 3.8;
+    const trayDepth = 1.4;
+
+    // Outer Tray Case
+    const caseGeo = new THREE.BoxGeometry(trayWidth, trayDepth, trayHeight);
+    const caseMat = new THREE.MeshPhysicalMaterial({
+      color: 0x111827,
+      roughness: 0.35,
+      metalness: 0.15,
+      clearcoat: 0.3
+    });
+    const caseMesh = new THREE.Mesh(caseGeo, caseMat);
+    caseMesh.position.set(0, -trayDepth / 2, 0);
+    caseMesh.receiveShadow = true;
+    caseMesh.castShadow = true;
+    this.boardGroup.add(caseMesh);
+
+    // Cyan metallic border trim
+    const trimGeo = new THREE.BoxGeometry(trayWidth + 0.3, 0.2, trayHeight + 0.3);
+    const trimMat = new THREE.MeshStandardMaterial({
+      color: 0x0284c7,
+      roughness: 0.2,
+      metalness: 0.8
+    });
+    const trimMesh = new THREE.Mesh(trimGeo, trimMat);
+    trimMesh.position.set(0, -trayDepth + 0.1, 0);
+    this.boardGroup.add(trimMesh);
+
+    // Create sockets ONLY for active drilled holes
+    const socketGeo = new THREE.CylinderGeometry(0.85, 0.72, 0.5, 24);
+    const socketMat = new THREE.MeshStandardMaterial({
+      color: 0x030712,
+      roughness: 0.8,
+      metalness: 0.2
+    });
+
+    const rimGeo = new THREE.RingGeometry(0.78, 0.92, 24);
+    const rimMat = new THREE.MeshStandardMaterial({
+      color: 0x38bdf8,
+      roughness: 0.3,
+      metalness: 0.6,
+      emissive: 0x0369a1,
+      emissiveIntensity: 0.25,
+      side: THREE.DoubleSide
+    });
+
+    const offsetX = -((this.gridW - 1) * spacing) / 2;
+    const offsetZ = -((this.gridH - 1) * spacing) / 2;
+
+    for (let r = 0; r < this.gridH; r++) {
+      for (let c = 0; c < this.gridW; c++) {
+        if (!this.customActiveHoles.has(`${r},${c}`)) continue;
+
+        const x = offsetX + c * spacing;
+        const z = offsetZ + r * spacing;
+
+        const socket = new THREE.Mesh(socketGeo, socketMat);
+        socket.position.set(x, -0.22, z);
+        socket.receiveShadow = true;
+        socket.userData = { isSocket: true, row: r, col: c };
+        this.boardGroup.add(socket);
+        this.socketMeshes.push(socket);
+
+        const rim = new THREE.Mesh(rimGeo, rimMat);
+        rim.rotation.x = -Math.PI / 2;
+        rim.position.set(x, 0.01, z);
+        this.boardGroup.add(rim);
+      }
+    }
+  }
+
+  loadCustomBoard(config) {
+    this.mode = 'custom';
+    this.customConfig = config;
+
+    const btn2D = document.getElementById('mode-2d');
+    const btn3D = document.getElementById('mode-3d');
+    const btnCustom = document.getElementById('mode-custom');
+    if (btn2D) btn2D.classList.remove('active');
+    if (btn3D) btn3D.classList.remove('active');
+    if (btnCustom) btnCustom.classList.add('active');
+
+    const diffBadge = document.getElementById('difficulty-badge');
+    if (diffBadge) {
+      diffBadge.className = 'difficulty-badge free';
+      diffBadge.textContent = 'Custom';
+      diffBadge.style.display = 'inline-block';
+    }
+
+    this.clearBoard(false);
+    this.deselectPiece();
+    this.initBoard();
+
+    // Rebuild dock for custom inventory
+    this.renderCustomDockUI();
+
+    this.movesCount = 0;
+    this.hintsCount = 0;
+    this.timerSeconds = 0;
+    this.updateStats();
+
+    this.showToast(`Custom Board: "${config.title || 'Player Board'}" (${config.totalHoles} Sockets) Loaded! 🎨`);
+  }
+
+  renderCustomDockUI() {
+    const rack = document.getElementById('pieces-rack');
+    if (!rack || !this.customConfig) return;
+    rack.innerHTML = '';
+
+    const inv = this.customConfig.inventory || [];
+    inv.forEach(inst => {
+      const def = window.getPieceDef ? window.getPieceDef(inst.letter) : window.PIECE_DEFINITIONS[inst.letter];
+      if (!def) return;
+
+      const card = document.createElement('div');
+      card.className = 'piece-card';
+      card.id = `piece-card-${inst.instanceId}`;
+      card.setAttribute('data-instance', inst.instanceId);
+      card.setAttribute('data-letter', inst.letter);
+
+      const top = document.createElement('div');
+      top.className = 'card-top';
+
+      const letterBadge = document.createElement('div');
+      letterBadge.className = 'card-letter';
+      letterBadge.style.backgroundColor = def.color;
+      letterBadge.textContent = inst.letter.startsWith('U_') ? '★' : inst.letter;
+
+      const status = document.createElement('div');
+      status.className = 'card-status';
+      status.textContent = `#${inst.index + 1} (${def.spheres}b)`;
+
+      top.appendChild(letterBadge);
+      top.appendChild(status);
+
+      const thumb = document.createElement('div');
+      thumb.className = 'card-thumb';
+      thumb.innerHTML = window.generatePieceSVG(def.letter, def.coords);
+
+      card.appendChild(top);
+      card.appendChild(thumb);
+
+      card.addEventListener('click', () => {
+        this.selectPiece(inst.instanceId, inst.letter);
+      });
+
+      rack.appendChild(card);
+    });
   }
 
   init2DBoard() {
@@ -364,16 +533,28 @@ class KanoodleGame {
   }
 
   // Place a piece onto board
-  placePiece(letter, coords, row, col, locked = false) {
-    const def = window.PIECE_DEFINITIONS[letter];
+  placePiece(letter, coords, row, col, locked = false, instanceId = null) {
+    const def = window.getPieceDef ? window.getPieceDef(letter) : window.PIECE_DEFINITIONS[letter];
     if (!def) return false;
 
-    // Check bounds & occupancy
+    // Check bounds & occupancy (in custom mode, non-holes are marked 'SOLID' and are not null)
     for (const [dx, dy] of coords) {
       const r = row + dy;
       const c = col + dx;
       if (r < 0 || r >= this.gridH || c < 0 || c >= this.gridW) return false;
       if (this.boardState[r][c] !== null) return false;
+    }
+
+    // Determine instance ID
+    let instId = instanceId;
+    if (!instId) {
+      if (this.mode === 'custom' && this.customConfig) {
+        const placedIds = new Set(this.placedPieces.map(p => p.instanceId));
+        const free = this.customConfig.inventory.find(i => i.letter === letter && !placedIds.has(i.instanceId));
+        instId = free ? free.instanceId : `${letter}_${Date.now()}`;
+      } else {
+        instId = letter;
+      }
     }
 
     // Mark board grid cells
@@ -392,6 +573,7 @@ class KanoodleGame {
 
     const pieceRecord = {
       piece: letter,
+      instanceId: instId,
       coords: coords,
       row: row,
       col: col,
@@ -405,7 +587,12 @@ class KanoodleGame {
     this.updateStats();
 
     // Check win condition
-    if (this.placedPieces.length === 12) {
+    const totalExpectedHoles = this.mode === 'custom'
+      ? (this.customConfig ? this.customConfig.totalHoles : this.socketMeshes.length)
+      : 55;
+    const filledSpheres = this.placedPieces.reduce((acc, p) => acc + p.coords.length, 0);
+
+    if (filledSpheres === totalExpectedHoles) {
       setTimeout(() => this.celebrateVictory(), 300);
     }
 
@@ -435,22 +622,34 @@ class KanoodleGame {
   }
 
   // Select a piece from tray
-  selectPiece(letter) {
-    const def = window.PIECE_DEFINITIONS[letter];
-    if (!def) return;
+  selectPiece(instanceIdOrLetter, letter = null) {
+    let actualLetter = letter || instanceIdOrLetter;
+    let instanceId = instanceIdOrLetter;
 
-    // Check if already placed
-    const already = this.placedPieces.find(p => p.piece === letter);
-    if (already) {
-      if (already.locked) {
-        this.showToast("Piece is locked in challenge! 🔒");
-        return;
+    if (this.mode === 'custom') {
+      const already = this.placedPieces.find(p => p.instanceId === instanceId);
+      if (already) {
+        this.removePiece(already);
       }
-      this.removePiece(already);
+    } else {
+      actualLetter = instanceIdOrLetter;
+      instanceId = actualLetter;
+      const already = this.placedPieces.find(p => p.piece === actualLetter);
+      if (already) {
+        if (already.locked) {
+          this.showToast("Piece is locked in challenge! 🔒");
+          return;
+        }
+        this.removePiece(already);
+      }
     }
 
+    const def = window.getPieceDef ? window.getPieceDef(actualLetter) : window.PIECE_DEFINITIONS[actualLetter];
+    if (!def) return;
+
     this.selectedPiece = {
-      letter: letter,
+      letter: actualLetter,
+      instanceId: instanceId,
       coords: [...def.coords],
       orientationIdx: 0,
       orientations: def.orientations
@@ -532,6 +731,46 @@ class KanoodleGame {
       return;
     }
 
+    if (this.mode === 'custom') {
+      if (!this.customConfig) return;
+      const totalPieces = (this.customConfig.inventory || []).length;
+      if (this.placedPieces.length >= totalPieces) {
+        this.showToast("All pieces already placed! 🎉");
+        return;
+      }
+
+      const activeHolesArr = Array.from(this.customActiveHoles || []).map(s => s.split(',').map(Number));
+      const customContext = {
+        width: this.gridW,
+        height: this.gridH,
+        activeHoles: activeHolesArr,
+        inventory: this.customConfig.rawInventory || {},
+        placed: this.placedPieces.map(p => ({
+          instanceId: p.instanceId || `${p.piece}_0`,
+          piece: p.piece,
+          coords: p.coords,
+          row: p.row,
+          col: p.col
+        }))
+      };
+
+      const nextPiece = window.kanoodleSolver.getCustomHint(customContext);
+      if (!nextPiece) {
+        this.showToast("No solution possible with current pieces! Try removing one ⚠️");
+        if (window.soundEngine) window.soundEngine.playError();
+        return;
+      }
+
+      this.deselectPiece();
+      this.placePiece(nextPiece.piece, nextPiece.coords, nextPiece.row, nextPiece.col, false, nextPiece.instanceId);
+      this.hintsCount++;
+      this.updateStats();
+
+      if (window.soundEngine) window.soundEngine.playHint();
+      this.showToast(`Placed piece ${nextPiece.piece} as hint! 💡`);
+      return;
+    }
+
     const currentPlacements = this.placedPieces.map(p => ({
       piece: p.piece,
       coords: p.coords,
@@ -560,6 +799,49 @@ class KanoodleGame {
     if (this.isSolving) return;
     this.isSolving = true;
     this.deselectPiece();
+
+    if (this.mode === 'custom') {
+      if (!this.customConfig) {
+        this.isSolving = false;
+        return;
+      }
+      const activeHolesArr = Array.from(this.customActiveHoles || []).map(s => s.split(',').map(Number));
+      const customContext = {
+        width: this.gridW,
+        height: this.gridH,
+        activeHoles: activeHolesArr,
+        inventory: this.customConfig.rawInventory || {},
+        placed: this.placedPieces.map(p => ({
+          instanceId: p.instanceId || `${p.piece}_0`,
+          piece: p.piece,
+          coords: p.coords,
+          row: p.row,
+          col: p.col
+        }))
+      };
+
+      const fullSolution = window.kanoodleSolver.solveCustom(customContext, 1);
+      if (!fullSolution) {
+        this.showToast("Custom board layout is unsolvable! Remove conflicting pieces first.");
+        if (window.soundEngine) window.soundEngine.playError();
+        this.isSolving = false;
+        return;
+      }
+
+      this.showToast("Auto-solving custom puzzle... ⚡");
+
+      const placedIds = new Set(this.placedPieces.map(p => p.instanceId));
+      const missing = fullSolution.filter(p => !placedIds.has(p.instanceId));
+
+      for (const p of missing) {
+        await new Promise(res => setTimeout(res, 220));
+        this.placePiece(p.piece, p.coords, p.row, p.col, false, p.instanceId);
+        if (window.soundEngine) window.soundEngine.playClack();
+      }
+
+      this.isSolving = false;
+      return;
+    }
 
     const currentPlacements = this.placedPieces.map(p => ({
       piece: p.piece,
@@ -592,6 +874,34 @@ class KanoodleGame {
 
   // Check if current board is solvable
   validateBoard() {
+    if (this.mode === 'custom') {
+      if (!this.customConfig) return;
+      const activeHolesArr = Array.from(this.customActiveHoles || []).map(s => s.split(',').map(Number));
+      const customContext = {
+        width: this.gridW,
+        height: this.gridH,
+        activeHoles: activeHolesArr,
+        inventory: this.customConfig.rawInventory || {},
+        placed: this.placedPieces.map(p => ({
+          instanceId: p.instanceId || `${p.piece}_0`,
+          piece: p.piece,
+          coords: p.coords,
+          row: p.row,
+          col: p.col
+        }))
+      };
+
+      const solvable = window.kanoodleSolver.isCustomSolvable(customContext);
+      if (solvable) {
+        this.showToast("Custom board is solvable! You are on the right track! 🌟");
+        if (window.soundEngine) window.soundEngine.playHint();
+      } else {
+        this.showToast("Current layout cannot be solved without moving pieces. ⚠️");
+        if (window.soundEngine) window.soundEngine.playError();
+      }
+      return;
+    }
+
     const currentPlacements = this.placedPieces.map(p => ({
       piece: p.piece,
       coords: p.coords,
@@ -1075,25 +1385,51 @@ class KanoodleGame {
     // Mode Toggle Buttons
     const btn2D = document.getElementById('mode-2d');
     const btn3D = document.getElementById('mode-3d');
-    if (btn2D && btn3D) {
+    const btnCustom = document.getElementById('mode-custom');
+
+    const setActiveModeBtn = (activeBtn) => {
+      [btn2D, btn3D, btnCustom].forEach(b => {
+        if (b) b.classList.remove('active');
+      });
+      if (activeBtn) activeBtn.classList.add('active');
+    };
+
+    if (btn2D) {
       btn2D.addEventListener('click', () => {
         if (this.mode === '2d') return;
         this.mode = '2d';
-        btn2D.classList.add('active');
-        btn3D.classList.remove('active');
+        setActiveModeBtn(btn2D);
         this.initBoard();
         this.loadLevel(this.currentLevelIndex);
+        this.initUI();
+        this.updateStats();
       });
+    }
+
+    if (btn3D) {
       btn3D.addEventListener('click', () => {
         if (this.mode === '3d') return;
         this.mode = '3d';
-        btn3D.classList.add('active');
-        btn2D.classList.remove('active');
+        setActiveModeBtn(btn3D);
         this.initBoard();
         this.clearBoard(false);
+        this.initUI();
+        this.updateStats();
         this.showToast("3D Pyramid Mode Active! 📐");
       });
     }
+
+    if (btnCustom) {
+      btnCustom.addEventListener('click', () => {
+        if (window.customStudio) {
+          window.customStudio.open();
+        }
+      });
+    }
+
+    document.getElementById('btn-custom-studio')?.addEventListener('click', () => {
+      if (window.customStudio) window.customStudio.open();
+    });
 
     // UI Buttons
     document.getElementById('btn-rotate')?.addEventListener('click', () => this.rotateSelected());
@@ -1165,4 +1501,7 @@ class KanoodleGame {
 
 window.addEventListener('DOMContentLoaded', () => {
   window.game = new KanoodleGame();
+  if (window.CustomStudio) {
+    window.customStudio = new CustomStudio();
+  }
 });

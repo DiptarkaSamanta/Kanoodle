@@ -220,27 +220,158 @@ class KanoodleSolver {
     return sol !== null;
   }
 
-  // Generate a fresh random puzzle with specified missing pieces
-  generateRandomPuzzle(missingCount = 3) {
-    if (!this.allPlacements || this.allPlacements.length === 0) {
-      this.precomputeRows();
+  // Solves arbitrary custom board with custom holes and custom piece inventories (including duplicate pieces!)
+  solveCustom({ width, height, activeHoles, inventory, placed = [] }, maxSolutions = 1) {
+    const activeSet = new Set();
+    if (activeHoles) {
+      activeHoles.forEach(h => {
+        if (Array.isArray(h)) {
+          activeSet.add(`${h[0]},${h[1]}`);
+        } else if (typeof h === 'string') {
+          activeSet.add(h);
+        }
+      });
     }
-    // Solve an empty board with shuffled order
-    const sol = this.solve([], 1);
-    if (!sol) return null;
 
-    // Shuffle and pick 12 - missingCount pieces to keep
-    const totalPieces = sol.length;
-    const keepCount = Math.max(1, Math.min(totalPieces - 1, totalPieces - missingCount));
-    const shuffled = [...sol].sort(() => Math.random() - 0.5);
+    const occupied = new Set();
+    const placedInstances = new Set();
 
-    const placed = shuffled.slice(0, keepCount);
-    return {
-      title: `Random Challenge (${missingCount} Missing)`,
-      difficulty: missingCount <= 3 ? 'Starter' : missingCount <= 5 ? 'Junior' : missingCount <= 7 ? 'Expert' : 'Master',
-      placed: placed,
-      fullSolution: sol
-    };
+    // Check placed pieces
+    for (const p of placed) {
+      if (placedInstances.has(p.instanceId)) return null;
+      placedInstances.add(p.instanceId);
+      for (const [dx, dy] of p.coords) {
+        const nr = p.row + dy;
+        const nc = p.col + dx;
+        const key = `${nr},${nc}`;
+        if (!activeSet.has(key)) return null;
+        if (occupied.has(key)) return null;
+        occupied.add(key);
+      }
+    }
+
+    // Remaining empty active holes
+    const remainingHoles = [];
+    activeSet.forEach(key => {
+      if (!occupied.has(key)) {
+        remainingHoles.push(key);
+      }
+    });
+
+    // Normalize inventory into array of instances
+    let instanceList = [];
+    if (Array.isArray(inventory)) {
+      instanceList = inventory;
+    } else if (typeof inventory === 'object' && inventory !== null) {
+      Object.entries(inventory).forEach(([letter, count]) => {
+        for (let i = 0; i < count; i++) {
+          instanceList.push({
+            instanceId: `${letter}_${i}`,
+            letter: letter,
+            index: i
+          });
+        }
+      });
+    }
+
+    // Unplaced inventory instances
+    const unplacedInstances = instanceList.filter(inst => !placedInstances.has(inst.instanceId));
+
+    // Fast check: sum of spheres must match remaining holes
+    let totalUnplacedSpheres = 0;
+    unplacedInstances.forEach(inst => {
+      const def = window.getPieceDef ? window.getPieceDef(inst.letter) : window.PIECE_DEFINITIONS[inst.letter];
+      if (def) totalUnplacedSpheres += def.spheres;
+    });
+
+    if (totalUnplacedSpheres !== remainingHoles.length) {
+      return null;
+    }
+
+    if (unplacedInstances.length === 0) {
+      return [...placed];
+    }
+
+    // Columns: instance IDs + remaining holes
+    const cols = [...unplacedInstances.map(inst => `inst_${inst.instanceId}`), ...remainingHoles.map(k => `h_${k}`)];
+    const colIndex = new Map();
+    cols.forEach((col, idx) => colIndex.set(col, idx));
+
+    const X = new Map();
+    cols.forEach((col, idx) => X.set(idx, new Set()));
+
+    const Y = [];
+    const rowMeta = [];
+
+    unplacedInstances.forEach(inst => {
+      const def = window.getPieceDef ? window.getPieceDef(inst.letter) : window.PIECE_DEFINITIONS[inst.letter];
+      if (!def) return;
+      const instCol = colIndex.get(`inst_${inst.instanceId}`);
+
+      def.orientations.forEach(shape => {
+        const maxX = Math.max(...shape.map(([x]) => x));
+        const maxY = Math.max(...shape.map(([, y]) => y));
+
+        for (let r = 0; r <= height - 1 - maxY; r++) {
+          for (let c = 0; c <= width - 1 - maxX; c++) {
+            let fits = true;
+            const coveredCols = [instCol];
+            for (const [dx, dy] of shape) {
+              const key = `${r + dy},${c + dx}`;
+              if (!activeSet.has(key) || occupied.has(key)) {
+                fits = false;
+                break;
+              }
+              const hCol = colIndex.get(`h_${key}`);
+              if (hCol === undefined) {
+                fits = false;
+                break;
+              }
+              coveredCols.push(hCol);
+            }
+
+            if (fits) {
+              const rIdx = Y.length;
+              Y.push(coveredCols);
+              rowMeta.push({
+                instanceId: inst.instanceId,
+                piece: inst.letter,
+                coords: shape,
+                row: r,
+                col: c
+              });
+              coveredCols.forEach(j => {
+                if (X.has(j)) X.get(j).add(rIdx);
+              });
+            }
+          }
+        }
+      });
+    });
+
+    const rawSolutions = this.solveExactCover(X, Y, [], maxSolutions);
+    if (!rawSolutions || rawSolutions.length === 0) return null;
+
+    const solutions = rawSolutions.map(solRows => {
+      const full = [...placed];
+      solRows.forEach(rIdx => {
+        full.push(rowMeta[rIdx]);
+      });
+      return full;
+    });
+
+    return maxSolutions === 1 ? solutions[0] : solutions;
+  }
+
+  getCustomHint(customContext) {
+    const full = this.solveCustom(customContext, 1);
+    if (!full) return null;
+    const placedIds = new Set((customContext.placed || []).map(p => p.instanceId));
+    return full.find(p => !placedIds.has(p.instanceId)) || null;
+  }
+
+  isCustomSolvable(customContext) {
+    return this.solveCustom(customContext, 1) !== null;
   }
 }
 

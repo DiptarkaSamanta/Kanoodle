@@ -27,6 +27,9 @@
           <button id="mode-3d" class="mode-btn" title="5-Tier Pyramid Mode">
             <span>📐</span> 3D Pyramid
           </button>
+          <button id="mode-custom" class="mode-btn" title="Custom Tray Designer & Pieces">
+            <span>🎨</span> Custom
+          </button>
         </div>
 
         <div class="level-controls">
@@ -69,6 +72,10 @@
           <span class="tool-icon">⇄</span>
           <span>Flip</span>
           <span class="kbd-badge">F</span>
+        </button>
+        <button id="btn-open-studio" class="tool-btn studio-btn" title="Open Custom Board & Piece Studio">
+          <span class="tool-icon">🎨</span>
+          <span>Studio</span>
         </button>
       </div>
 
@@ -200,7 +207,7 @@
       <div class="modal-card">
         <h2 class="modal-title">How To Play Kanoodle</h2>
         <div class="rules-list">
-          <div><strong>Goal:</strong> Fit all 12 colorful polysphere pieces into the 55 sockets without any overlaps or gaps!</div>
+          <div><strong>Goal:</strong> Fit all colorful polysphere pieces into the sockets without any overlaps or gaps!</div>
           <div><strong>Locked Pieces:</strong> Starter pieces marked with 🔒 are fixed by the challenge card. Place the remaining pieces to solve!</div>
           <div><strong>Controls:</strong>
             <ul style="margin-left: 20px; margin-top: 6px; display: flex; flex-direction: column; gap: 4px;">
@@ -220,6 +227,131 @@
         </div>
       </div>
     </div>
+
+    <!-- Custom Studio Modal -->
+    <div id="custom-studio-modal" class="modal-overlay">
+      <div class="modal-card studio-card">
+        <div class="studio-header">
+          <div class="studio-title-wrap">
+            <h2 class="modal-title">🎨 Kanoodle Custom Studio</h2>
+            <span class="studio-subtitle">Design custom tray shapes, solid obstacles, duplicate pieces & unique polyspheres!</span>
+          </div>
+          <button id="studio-close-btn" class="modal-close-x" aria-label="Close Studio">&times;</button>
+        </div>
+
+        <!-- Studio Tabs -->
+        <div class="studio-tabs-bar">
+          <button class="studio-tab-btn active" data-target="tab-designer"><span>📐</span> Board Designer</button>
+          <button class="studio-tab-btn" data-target="tab-inventory"><span>🧩</span> Piece Inventory</button>
+          <button class="studio-tab-btn" data-target="tab-creator"><span>✨</span> Create Shape</button>
+          <button class="studio-tab-btn" data-target="tab-saved"><span>💾</span> Saved Boards</button>
+        </div>
+
+        <!-- Tab 1: Board Designer -->
+        <div id="tab-designer" class="studio-tab-pane active">
+          <!-- Presets -->
+          <div class="studio-section-title">Quick Presets & Obstacle Challenges</div>
+          <div id="custom-presets-list" class="presets-carousel"></div>
+
+          <!-- Board Painter Controls -->
+          <div class="painter-controls-bar">
+            <div class="dimension-control">
+              <label for="custom-width-input">Width (Columns):</label>
+              <input type="number" id="custom-width-input" min="3" max="14" value="8">
+            </div>
+            <div class="dimension-control">
+              <label for="custom-height-input">Height (Rows):</label>
+              <input type="number" id="custom-height-input" min="3" max="10" value="6">
+            </div>
+            <div class="painter-actions-group">
+              <button id="btn-fill-all-holes" class="action-pill-btn secondary">Fill All Sockets</button>
+              <button id="btn-clear-all-holes" class="action-pill-btn secondary">All Solid</button>
+              <button id="btn-invert-holes" class="action-pill-btn secondary">Invert</button>
+            </div>
+          </div>
+
+          <div class="painter-instructions">
+            <span>💡 <strong>Click or drag</strong> on grid cells below to drill sockets (cyan) or make solid plastic obstacles (dark). Solid cells cannot hold pieces and must be navigated around!</span>
+          </div>
+
+          <!-- Interactive 2D Grid Painter -->
+          <div class="board-painter-wrapper">
+            <div id="board-painter-grid" class="board-painter-grid"></div>
+          </div>
+
+          <!-- Balance & Auto Match Stats Bar -->
+          <div class="studio-balance-bar">
+            <div class="balance-counters">
+              <span id="custom-holes-count" class="counter-tag sockets">48 Sockets</span>
+              <span class="counter-divider">=</span>
+              <span id="custom-beads-count" class="counter-tag beads">48 Beads</span>
+              <span id="custom-balance-status" class="balance-badge perfect">✓ Perfect Fit</span>
+            </div>
+            <button id="btn-auto-match-pieces" class="action-pill-btn primary" title="Automatically calculate piece inventory to perfectly equal active sockets">
+              🎯 Auto-Match Sockets
+            </button>
+          </div>
+        </div>
+
+        <!-- Tab 2: Piece Inventory -->
+        <div id="tab-inventory" class="studio-tab-pane">
+          <div class="studio-section-title">Tray Piece Inventory (Multiples Allowed!)</div>
+          <div class="painter-instructions">
+            <span>Choose how many of each piece are available. You can have 2, 3, or more identical pieces in your custom game!</span>
+          </div>
+          <div id="custom-inventory-list" class="inventory-grid-list"></div>
+        </div>
+
+        <!-- Tab 3: Custom Shape Creator -->
+        <div id="tab-creator" class="studio-tab-pane">
+          <div class="studio-section-title">Polysphere Shape Forge (5×5 Matrix)</div>
+          <div class="painter-instructions">
+            <span>Click any bead on the 5×5 matrix to design your own custom Kanoodle piece!</span>
+          </div>
+          <div class="creator-forge-wrap">
+            <div class="creator-grid-box">
+              <div id="shape-creator-grid" class="shape-creator-grid"></div>
+            </div>
+            <div class="creator-options-box">
+              <label class="creator-label">Piece Color:</label>
+              <div class="creator-color-palette">
+                <div class="creator-color-swatch selected" data-color="#38bdf8" style="background:#38bdf8;"></div>
+                <div class="creator-color-swatch" data-color="#ec4899" style="background:#ec4899;"></div>
+                <div class="creator-color-swatch" data-color="#10b981" style="background:#10b981;"></div>
+                <div class="creator-color-swatch" data-color="#f59e0b" style="background:#f59e0b;"></div>
+                <div class="creator-color-swatch" data-color="#8b5cf6" style="background:#8b5cf6;"></div>
+                <div class="creator-color-swatch" data-color="#ef4444" style="background:#ef4444;"></div>
+                <div class="creator-color-swatch" data-color="#06b6d4" style="background:#06b6d4;"></div>
+                <div class="creator-color-swatch" data-color="#eab308" style="background:#eab308;"></div>
+              </div>
+              <label for="custom-shape-name" class="creator-label" style="margin-top: 12px;">Piece Name:</label>
+              <input type="text" id="custom-shape-name" class="studio-input" placeholder="e.g. Star Cross, Mini Domino">
+              <button id="btn-save-custom-shape" class="action-pill-btn primary" style="margin-top: 12px; width: 100%;">
+                ✨ Save & Add Piece To Inventory
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 4: Saved Boards -->
+        <div id="tab-saved" class="studio-tab-pane">
+          <div class="studio-section-title">Save & Load Custom Boards</div>
+          <div class="save-bar-row">
+            <input type="text" id="save-board-name-input" class="studio-input" placeholder="Board Name (e.g. My Maze Challenge)">
+            <button id="btn-save-board" class="action-pill-btn primary">💾 Save Current Board</button>
+          </div>
+          <div class="studio-section-title" style="margin-top: 20px;">Your Saved Custom Boards</div>
+          <div id="saved-boards-list" class="saved-boards-list"></div>
+        </div>
+
+        <!-- Studio Modal Actions -->
+        <div class="studio-footer-actions">
+          <button id="btn-play-custom-board" class="modal-btn primary studio-launch-btn">
+            ▶ Play This Custom Board in 3D
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- Scripts -->
@@ -229,6 +361,7 @@
   <script src="./src/audio.js"></script>
   <script src="./src/pieces.js"></script>
   <script src="./src/solver.js"></script>
+  <script src="./src/custom_studio.js"></script>
   <script src="./src/levels.js"></script>
   <script src="./src/game.js"></script>
 </body>

@@ -111,6 +111,121 @@ const PIECE_DEFINITIONS = {
   }
 };
 
+// Extended shapes for Custom Mode (Monosperes, Dominios, Trominoes, Alternative Pentas, Hexaspheres)
+const EXTENDED_PIECE_DEFINITIONS = {
+  M: {
+    letter: 'M',
+    name: 'Dot-1',
+    color: '#f43f5e',
+    colorHex: 0xf43f5e,
+    accent: '#fda4af',
+    spheres: 1,
+    coords: [[0, 0]]
+  },
+  N: {
+    letter: 'N',
+    name: 'Domino-2',
+    color: '#0ea5e9',
+    colorHex: 0x0ea5e9,
+    accent: '#7dd3fc',
+    spheres: 2,
+    coords: [[0, 0], [1, 0]]
+  },
+  O: {
+    letter: 'O',
+    name: 'Tromino-3',
+    color: '#f97316',
+    colorHex: 0xf97316,
+    accent: '#fdba74',
+    spheres: 3,
+    coords: [[0, 0], [1, 0], [2, 0]]
+  },
+  P: {
+    letter: 'P',
+    name: 'T-Tetra-4',
+    color: '#a855f7',
+    colorHex: 0xa855f7,
+    accent: '#d8b4fe',
+    spheres: 4,
+    coords: [[0, 0], [1, 0], [2, 0], [1, 1]]
+  },
+  Q: {
+    letter: 'Q',
+    name: 'Z-Tetra-4',
+    color: '#ec4899',
+    colorHex: 0xec4899,
+    accent: '#f472b6',
+    spheres: 4,
+    coords: [[0, 0], [1, 0], [1, 1], [2, 1]]
+  },
+  R: {
+    letter: 'R',
+    name: 'Line-5',
+    color: '#14b8a6',
+    colorHex: 0x14b8a6,
+    accent: '#5eead4',
+    spheres: 5,
+    coords: [[0, 0], [1, 0], [2, 0], [3, 0], [4, 0]]
+  },
+  S: {
+    letter: 'S',
+    name: 'F-Penta-5',
+    color: '#e11d48',
+    colorHex: 0xe11d48,
+    accent: '#fb7185',
+    spheres: 5,
+    coords: [[1, 0], [2, 0], [0, 1], [1, 1], [1, 2]]
+  },
+  T: {
+    letter: 'T',
+    name: 'Big-T-5',
+    color: '#6366f1',
+    colorHex: 0x6366f1,
+    accent: '#a5b4fc',
+    spheres: 5,
+    coords: [[0, 0], [1, 0], [2, 0], [1, 1], [1, 2]]
+  },
+  U: {
+    letter: 'U',
+    name: 'Stair-W-5',
+    color: '#84cc16',
+    colorHex: 0x84cc16,
+    accent: '#bef264',
+    spheres: 5,
+    coords: [[0, 0], [0, 1], [1, 1], [1, 2], [2, 2]]
+  },
+  V: {
+    letter: 'V',
+    name: 'N-Penta-5',
+    color: '#eab308',
+    colorHex: 0xeab308,
+    accent: '#fef08a',
+    spheres: 5,
+    coords: [[0, 0], [1, 0], [1, 1], [2, 1], [3, 1]]
+  },
+  W: {
+    letter: 'W',
+    name: 'Block-6',
+    color: '#7e22ce',
+    colorHex: 0x7e22ce,
+    accent: '#c084fc',
+    spheres: 6,
+    coords: [[0, 0], [1, 0], [2, 0], [0, 1], [1, 1], [2, 1]]
+  },
+  X: {
+    letter: 'X',
+    name: 'Stair-6',
+    color: '#d97706',
+    colorHex: 0xd97706,
+    accent: '#fcd34d',
+    spheres: 6,
+    coords: [[0, 0], [1, 0], [1, 1], [2, 1], [2, 2], [3, 2]]
+  }
+};
+
+// Global unified piece registry
+const CUSTOM_PIECES = {};
+
 // Coordinate helpers
 function normalizeCoords(coords) {
   const minX = Math.min(...coords.map(([x]) => x));
@@ -157,10 +272,39 @@ function getAllOrientations(baseCoords) {
   return orientations;
 }
 
-// Pre-calculate all unique orientations
+// Pre-calculate orientations
 Object.values(PIECE_DEFINITIONS).forEach(piece => {
   piece.orientations = getAllOrientations(piece.coords);
 });
+Object.values(EXTENDED_PIECE_DEFINITIONS).forEach(piece => {
+  piece.orientations = getAllOrientations(piece.coords);
+});
+
+// Dynamic piece helper
+function getPieceDef(letter) {
+  return PIECE_DEFINITIONS[letter] || EXTENDED_PIECE_DEFINITIONS[letter] || CUSTOM_PIECES[letter] || null;
+}
+
+function registerCustomPiece(pieceDef) {
+  const norm = normalizeCoords(pieceDef.coords);
+  const color = pieceDef.color || '#38bdf8';
+  const colorHex = typeof pieceDef.colorHex === 'number' ? pieceDef.colorHex : parseInt(color.replace('#', '0x'), 16);
+  const letter = pieceDef.letter || `C_${Date.now()}`;
+  
+  const def = {
+    letter: letter,
+    name: pieceDef.name || 'Custom Shape',
+    color: color,
+    colorHex: colorHex,
+    accent: pieceDef.accent || '#93c5fd',
+    spheres: norm.length,
+    coords: norm,
+    orientations: getAllOrientations(norm),
+    isCustom: true
+  };
+  CUSTOM_PIECES[letter] = def;
+  return def;
+}
 
 // Three.js 3D Mesh Generation
 const SPHERE_RADIUS = 0.96;
@@ -168,7 +312,7 @@ const CONNECTOR_RADIUS = 0.58;
 const SPHERE_SPACING = 2.0;
 
 function createPieceMesh(letter, coords, options = {}) {
-  const def = PIECE_DEFINITIONS[letter];
+  const def = getPieceDef(letter);
   if (!def) return null;
 
   const isGhost = !!options.isGhost;
@@ -250,7 +394,9 @@ function createPieceMesh(letter, coords, options = {}) {
 
 // Generate SVG thumbnail for UI tray buttons
 function generatePieceSVG(letter, coords, size = 64) {
-  const def = PIECE_DEFINITIONS[letter];
+  const def = getPieceDef(letter);
+  if (!def) return '';
+
   const maxX = Math.max(...coords.map(([x]) => x));
   const maxY = Math.max(...coords.map(([, y]) => y));
   const spanX = maxX + 1;
@@ -294,11 +440,16 @@ function generatePieceSVG(letter, coords, size = 64) {
 }
 
 window.PIECE_DEFINITIONS = PIECE_DEFINITIONS;
+window.EXTENDED_PIECE_DEFINITIONS = EXTENDED_PIECE_DEFINITIONS;
+window.CUSTOM_PIECES = CUSTOM_PIECES;
+window.getPieceDef = getPieceDef;
+window.registerCustomPiece = registerCustomPiece;
 window.createPieceMesh = createPieceMesh;
 window.generatePieceSVG = generatePieceSVG;
 window.normalizeCoords = normalizeCoords;
 window.rotateCoords = rotateCoords;
 window.flipCoords = flipCoords;
 window.areCoordsEqual = areCoordsEqual;
+window.getAllOrientations = getAllOrientations;
 window.SPHERE_RADIUS = SPHERE_RADIUS;
 window.SPHERE_SPACING = SPHERE_SPACING;
