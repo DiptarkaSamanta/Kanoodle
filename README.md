@@ -2,7 +2,22 @@
 
 A premium, tactile, colorful 3D web puzzle game inspired by the classic **Kanoodle** brain teaser by Educational Insights.
 
-![Kanoodle 3D Preview](./screenshot.png)
+[![Play Online](https://img.shields.io/badge/Play%20Online-GitHub%20Pages-brightgreen?style=for-the-badge&logo=github)](https://diptarkasamanta.github.io/Kanoodle/)
+
+![Kanoodle 3D Board](./screenshot.png)
+
+## 🌐 Play Online in Your Browser
+
+You can play Kanoodle 3D directly in your browser without installing anything:
+👉 **[https://diptarkasamanta.github.io/Kanoodle/](https://diptarkasamanta.github.io/Kanoodle/)**
+
+---
+
+## ⚡ Quick Start (Windows)
+
+Just double-click **`start_game.bat`** in the project folder! It will automatically launch the local server and open the game in your default web browser.
+
+---
 
 ## ✨ Features
 
@@ -20,7 +35,7 @@ A premium, tactile, colorful 3D web puzzle game inspired by the classic **Kanood
   - **Random Challenge (🎲)**: Generates solvable puzzles on demand.
   - **Free Play**: Empty board to experiment with your own custom configurations.
 - **Tactile Procedural Audio Engine**:
-  - Zero external MP3 files! Built with Web Audio API for ultra-responsive sound:
+  - Zero external audio files! Built with Web Audio API for ultra-responsive sound:
     - Marble drop clack
     - Piece lift pop
     - Rotate swoosh
@@ -39,20 +54,54 @@ A premium, tactile, colorful 3D web puzzle game inspired by the classic **Kanood
   - Star rating (3 stars for 0 hints, 2 stars for 1 hint, 1 star for 2+ hints).
   - Timer and move counter.
 
+---
+
+## 🕹️ Controls Guide
+
+| Action | Control |
+| :--- | :--- |
+| **Select Piece** | Click any piece card in the bottom tray |
+| **Rotate (90°)** | <kbd>R</kbd> key or **Mouse Wheel** |
+| **Flip / Mirror** | <kbd>F</kbd> key |
+| **Place on Board** | Left-click on any board hole |
+| **Pick Up Placed Piece** | Click on any non-locked piece on the board |
+| **Deselect** | <kbd>Esc</kbd> or Right-click |
+| **Orbit Camera** | Right-click + drag on canvas |
+| **Zoom** | Scroll wheel |
+| **Camera View Presets** | <kbd>Space</kbd> or floating buttons on bottom-right |
+
+---
+
 ## 🚀 Running Locally
 
-You can run Kanoodle with any static HTTP server. For example:
+### Option 1: Double Click `start_game.bat` (Windows)
+Double-click `start_game.bat` to launch automatically.
 
-### Using Python:
+### Option 2: Python HTTP Server
 ```bash
 python -m http.server 8080
 ```
-Then open `http://localhost:8080` in your web browser.
+Then navigate to `http://localhost:8080`.
 
-### Using Node.js:
+### Option 3: Node.js / npx
 ```bash
 npx serve .
 ```
+
+---
+
+## 📡 Publishing to GitHub Pages
+
+This repository includes an automatic GitHub Actions deployment workflow ([.github/workflows/pages.yml](.github/workflows/pages.yml)).
+
+To activate:
+1. Go to your repository on GitHub: **`https://github.com/DiptarkaSamanta/Kanoodle`**
+2. Click **Settings** ⚙️ > **Pages** (in the left sidebar).
+3. Under **Build and deployment** > **Source**, select **GitHub Actions** (or select **Deploy from a branch** and choose `main` / `root`).
+4. Once selected, your game is live and playable at:
+   **`https://diptarkasamanta.github.io/Kanoodle/`**
+
+---
 
 ## 🛠️ Tech Stack
 
