@@ -55,59 +55,62 @@ class KanoodleGame {
   initThree() {
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x0a0e17);
-    this.scene.fog = new THREE.FogExp2(0x0a0e17, 0.015);
+    // Note: No fog, to prevent washing out colors into a milky haze on mobile GPUs!
 
     const width = this.container.clientWidth;
     const height = this.container.clientHeight;
 
     this.camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
-    this.setCameraPreset('isometric');
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
     this.renderer.setSize(width, height);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.15;
+
+    // Vibrant true sRGB rendering
+    if (THREE.sRGBEncoding) {
+      this.renderer.outputEncoding = THREE.sRGBEncoding;
+    }
+    this.renderer.toneMapping = THREE.LinearToneMapping;
+    this.renderer.toneMappingExposure = 1.05;
 
     this.container.appendChild(this.renderer.domElement);
 
     this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
     this.controls.enableDamping = true;
-    this.controls.dampingFactor = 0.06;
-    this.controls.maxPolarAngle = Math.PI / 2 - 0.05; // Don't go below table
-    this.controls.minDistance = 10;
-    this.controls.maxDistance = 60;
+    this.controls.dampingFactor = 0.08;
+    this.controls.maxPolarAngle = Math.PI / 2 - 0.05;
+    this.controls.minDistance = 8;
+    this.controls.maxDistance = 70;
     this.controls.target.set(0, 0, 0);
 
-    // Studio Lighting
-    const ambientLight = new THREE.AmbientLight(0xdbeafe, 0.7);
+    // Initial camera positioning optimized for screen ratio
+    this.updateCameraForDevice();
+
+    // Studio Lighting - bright, neutral, punchy
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.55);
     this.scene.add(ambientLight);
 
-    const keyLight = new THREE.DirectionalLight(0xffffff, 1.4);
-    keyLight.position.set(16, 32, 20);
+    const keyLight = new THREE.DirectionalLight(0xffffff, 1.3);
+    keyLight.position.set(15, 30, 20);
     keyLight.castShadow = true;
-    keyLight.shadow.mapSize.width = 2048;
-    keyLight.shadow.mapSize.height = 2048;
+    keyLight.shadow.mapSize.width = 1024;
+    keyLight.shadow.mapSize.height = 1024;
     keyLight.shadow.camera.near = 5;
     keyLight.shadow.camera.far = 70;
-    keyLight.shadow.camera.left = -20;
-    keyLight.shadow.camera.right = 20;
-    keyLight.shadow.camera.top = 20;
-    keyLight.shadow.camera.bottom = -20;
     keyLight.shadow.bias = -0.0005;
     this.scene.add(keyLight);
 
-    const fillLight = new THREE.DirectionalLight(0x93c5fd, 0.6);
-    fillLight.position.set(-16, 20, -15);
+    const fillLight = new THREE.DirectionalLight(0xffffff, 0.45);
+    fillLight.position.set(-15, 20, -15);
     this.scene.add(fillLight);
 
-    const rimLight = new THREE.DirectionalLight(0xa855f7, 0.4);
-    rimLight.position.set(0, -10, 25);
-    this.scene.add(rimLight);
+    const pointLight = new THREE.PointLight(0xffffff, 0.65, 45);
+    pointLight.position.set(0, 16, 2);
+    this.scene.add(pointLight);
 
-    // Subtle table ground plane for soft shadow catching
+    // Soft floor shadow receiver
     const groundGeo = new THREE.PlaneGeometry(120, 120);
     const groundMat = new THREE.ShadowMaterial({ opacity: 0.35 });
     const ground = new THREE.Mesh(groundGeo, groundMat);
@@ -120,17 +123,33 @@ class KanoodleGame {
     this.scene.add(this.piecesGroup);
   }
 
+  updateCameraForDevice() {
+    const isMobilePortrait = window.innerWidth < 768 && window.innerHeight > window.innerWidth;
+    if (isMobilePortrait) {
+      // In portrait mobile, elevate camera and adjust FOV so 11x5 board fits with side padding
+      this.camera.fov = 54;
+      this.camera.position.set(0, 36, 24);
+      if (this.controls) this.controls.target.set(0, 0, -0.5);
+    } else {
+      this.camera.fov = 45;
+      this.camera.position.set(0, 22, 22);
+      if (this.controls) this.controls.target.set(0, 0, 0);
+    }
+    this.camera.updateProjectionMatrix();
+    if (this.controls) this.controls.update();
+  }
+
   setCameraPreset(preset) {
+    const isMobile = window.innerWidth < 768;
     if (preset === 'top') {
-      this.camera.position.set(0, 32, 0.1);
+      this.camera.position.set(0, isMobile ? 38 : 32, 0.1);
       if (this.controls) this.controls.target.set(0, 0, 0);
     } else if (preset === 'front') {
-      this.camera.position.set(0, 16, 26);
+      this.camera.position.set(0, isMobile ? 20 : 16, isMobile ? 32 : 26);
       if (this.controls) this.controls.target.set(0, 0, 0);
     } else {
       // Isometric default
-      this.camera.position.set(0, 22, 22);
-      if (this.controls) this.controls.target.set(0, 0, 0);
+      this.updateCameraForDevice();
     }
     if (this.controls) this.controls.update();
   }
@@ -799,59 +818,151 @@ class KanoodleGame {
     }, 2500);
   }
 
+  // Smart placement when tapping a hole: tries exact anchor or centered on tapped hole
+  tryPlaceAtHole(targetRow, targetCol) {
+    if (!this.selectedPiece) return false;
+
+    // 1. Try default anchor (row, col)
+    if (this.canFitPiece(this.selectedPiece.coords, targetRow, targetCol)) {
+      this.placePiece(this.selectedPiece.letter, this.selectedPiece.coords, targetRow, targetCol, false);
+      if (window.soundEngine) window.soundEngine.playClack();
+      if (navigator.vibrate) navigator.vibrate(25);
+      this.deselectPiece();
+      return true;
+    }
+
+    // 2. Try aligning each individual sphere of the piece with the clicked hole
+    for (const [dx, dy] of this.selectedPiece.coords) {
+      const candidateRow = targetRow - dy;
+      const candidateCol = targetCol - dx;
+      if (this.canFitPiece(this.selectedPiece.coords, candidateRow, candidateCol)) {
+        this.placePiece(this.selectedPiece.letter, this.selectedPiece.coords, candidateRow, candidateCol, false);
+        if (window.soundEngine) window.soundEngine.playClack();
+        if (navigator.vibrate) navigator.vibrate(25);
+        this.deselectPiece();
+        return true;
+      }
+    }
+
+    // Failed to fit at or around this hole
+    if (window.soundEngine) window.soundEngine.playError();
+    if (navigator.vibrate) navigator.vibrate([15, 30, 15]);
+    this.showToast("Piece doesn't fit in this hole! Try rotating ↻");
+    return false;
+  }
+
+  canFitPiece(coords, row, col) {
+    for (const [dx, dy] of coords) {
+      const r = row + dy;
+      const c = col + dx;
+      if (r < 0 || r >= this.gridH || c < 0 || c >= this.gridW) return false;
+      if (this.boardState[r][c] !== null) return false;
+    }
+    return true;
+  }
+
   bindEvents() {
-    // Window Resize
-    window.addEventListener('resize', () => {
+    // Window Resize & Orientation Change
+    const handleResize = () => {
       const w = this.container.clientWidth;
       const h = this.container.clientHeight;
       this.camera.aspect = w / h;
       this.camera.updateProjectionMatrix();
       this.renderer.setSize(w, h);
-    });
+      this.updateCameraForDevice();
+    };
+    window.addEventListener('resize', handleResize);
+    window.addEventListener('orientationchange', () => setTimeout(handleResize, 150));
 
-    // Mouse Move (Raycast & Ghost Positioning)
-    this.container.addEventListener('mousemove', (e) => {
+    // Pointer / Touch state
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let isTouchDragging = false;
+
+    const updateRaycastFromClient = (clientX, clientY) => {
       const rect = this.container.getBoundingClientRect();
-      this.mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-      this.mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+      this.mouse.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+      this.mouse.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+      this.raycaster.setFromCamera(this.mouse, this.camera);
 
       if (!this.selectedPiece) return;
 
-      this.raycaster.setFromCamera(this.mouse, this.camera);
       const intersects = this.raycaster.intersectObjects(this.socketMeshes);
-
       if (intersects.length > 0) {
         const socket = intersects[0].object;
         const row = socket.userData.row;
         const col = socket.userData.col;
-
-        // Check placement validity
-        let valid = true;
-        for (const [dx, dy] of this.selectedPiece.coords) {
-          const nr = row + dy;
-          const nc = col + dx;
-          if (nr < 0 || nr >= this.gridH || nc < 0 || nc >= this.gridW) {
-            valid = false;
-            break;
-          }
-          if (this.boardState[nr][nc] !== null) {
-            valid = false;
-            break;
-          }
-        }
-
+        const valid = this.canFitPiece(this.selectedPiece.coords, row, col);
         this.hoverPos = { row, col, valid };
       } else {
         this.hoverPos = null;
       }
-
       this.updateGhostMesh();
+    };
+
+    // Mouse Move (Desktop)
+    this.container.addEventListener('mousemove', (e) => {
+      updateRaycastFromClient(e.clientX, e.clientY);
     });
 
-    // Click on canvas (Place or Pick Up)
-    this.container.addEventListener('click', (e) => {
-      if (this.selectedPiece && this.hoverPos) {
-        if (this.hoverPos.valid) {
+    // Touch Start (Mobile Drag / Pick)
+    this.container.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 1) {
+        const touch = e.touches[0];
+        touchStartX = touch.clientX;
+        touchStartY = touch.clientY;
+        updateRaycastFromClient(touch.clientX, touch.clientY);
+
+        if (this.selectedPiece) {
+          isTouchDragging = true;
+          this.controls.enabled = false; // Lock camera orbit while dragging piece
+        } else {
+          // Check if touching an existing placed piece
+          const intersects = this.raycaster.intersectObjects(this.piecesGroup.children, true);
+          if (intersects.length > 0) {
+            let topGroup = intersects[0].object;
+            while (topGroup && topGroup.parent && topGroup.parent !== this.piecesGroup) {
+              topGroup = topGroup.parent;
+            }
+            if (topGroup && topGroup.userData && topGroup.userData.pieceLetter) {
+              const letter = topGroup.userData.pieceLetter;
+              const rec = this.placedPieces.find(p => p.piece === letter);
+              if (rec && !rec.locked) {
+                this.removePiece(rec);
+                this.selectPiece(letter);
+                isTouchDragging = true;
+                this.controls.enabled = false;
+                if (navigator.vibrate) navigator.vibrate(15);
+              }
+            }
+          }
+        }
+      } else if (e.touches.length >= 2) {
+        // Multi-touch: allow pinch zoom / two-finger rotate
+        this.controls.enabled = true;
+        isTouchDragging = false;
+      }
+    }, { passive: false });
+
+    // Touch Move (Drag piece over holes)
+    this.container.addEventListener('touchmove', (e) => {
+      if (e.touches.length === 1 && this.selectedPiece) {
+        e.preventDefault(); // Prevent page pull-down refresh while dragging
+        const touch = e.touches[0];
+        updateRaycastFromClient(touch.clientX, touch.clientY);
+      }
+    }, { passive: false });
+
+    // Touch End (Snap & Drop or Tap Hole)
+    this.container.addEventListener('touchend', (e) => {
+      this.controls.enabled = true;
+
+      const touch = e.changedTouches[0];
+      const dist = Math.hypot(touch.clientX - touchStartX, touch.clientY - touchStartY);
+
+      if (this.selectedPiece) {
+        // If dragged into a valid hole
+        if (this.hoverPos && this.hoverPos.valid) {
           const success = this.placePiece(
             this.selectedPiece.letter,
             this.selectedPiece.coords,
@@ -861,35 +972,68 @@ class KanoodleGame {
           );
           if (success) {
             if (window.soundEngine) window.soundEngine.playClack();
+            if (navigator.vibrate) navigator.vibrate(25);
+            this.deselectPiece();
+          }
+        } else if (dist < 15) {
+          // Tap on a hole (Click the Hole)
+          const intersects = this.raycaster.intersectObjects(this.socketMeshes);
+          if (intersects.length > 0) {
+            const socket = intersects[0].object;
+            this.tryPlaceAtHole(socket.userData.row, socket.userData.col);
+          }
+        }
+      }
+      isTouchDragging = false;
+    });
+
+    // Click on canvas (Desktop Place or Pick Up)
+    this.container.addEventListener('click', (e) => {
+      if (this.selectedPiece) {
+        if (this.hoverPos && this.hoverPos.valid) {
+          const success = this.placePiece(
+            this.selectedPiece.letter,
+            this.selectedPiece.coords,
+            this.hoverPos.row,
+            this.hoverPos.col,
+            false
+          );
+          if (success) {
+            if (window.soundEngine) window.soundEngine.playClack();
+            if (navigator.vibrate) navigator.vibrate(25);
             this.deselectPiece();
           }
         } else {
-          if (window.soundEngine) window.soundEngine.playError();
-          this.showToast("Cannot place here: overlapping or out of bounds! ⚠️");
+          // Try smart hole click
+          const intersects = this.raycaster.intersectObjects(this.socketMeshes);
+          if (intersects.length > 0) {
+            this.tryPlaceAtHole(intersects[0].object.userData.row, intersects[0].object.userData.col);
+          } else {
+            if (window.soundEngine) window.soundEngine.playError();
+            this.showToast("Cannot place here: overlapping or out of bounds! ⚠️");
+          }
         }
         return;
       }
 
       // If no piece selected, check if user clicked on an existing placed piece to pick it up
-      if (!this.selectedPiece) {
-        this.raycaster.setFromCamera(this.mouse, this.camera);
-        const intersects = this.raycaster.intersectObjects(this.piecesGroup.children, true);
-        if (intersects.length > 0) {
-          let topGroup = intersects[0].object;
-          while (topGroup && topGroup.parent && topGroup.parent !== this.piecesGroup) {
-            topGroup = topGroup.parent;
-          }
-          if (topGroup && topGroup.userData && topGroup.userData.pieceLetter) {
-            const letter = topGroup.userData.pieceLetter;
-            const rec = this.placedPieces.find(p => p.piece === letter);
-            if (rec) {
-              if (rec.locked) {
-                this.showToast("This piece is part of the challenge starter! 🔒");
-                if (window.soundEngine) window.soundEngine.playError();
-              } else {
-                this.removePiece(rec);
-                this.selectPiece(letter);
-              }
+      this.raycaster.setFromCamera(this.mouse, this.camera);
+      const intersects = this.raycaster.intersectObjects(this.piecesGroup.children, true);
+      if (intersects.length > 0) {
+        let topGroup = intersects[0].object;
+        while (topGroup && topGroup.parent && topGroup.parent !== this.piecesGroup) {
+          topGroup = topGroup.parent;
+        }
+        if (topGroup && topGroup.userData && topGroup.userData.pieceLetter) {
+          const letter = topGroup.userData.pieceLetter;
+          const rec = this.placedPieces.find(p => p.piece === letter);
+          if (rec) {
+            if (rec.locked) {
+              this.showToast("This piece is part of the challenge starter! 🔒");
+              if (window.soundEngine) window.soundEngine.playError();
+            } else {
+              this.removePiece(rec);
+              this.selectPiece(letter);
             }
           }
         }

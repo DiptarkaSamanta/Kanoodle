@@ -911,29 +911,224 @@ body::before {
   font-size: 11px;
 }
 
-/* Responsive Styles */
-@media (max-width: 900px) {
+/* Touch optimizations */
+#canvas-container {
+  touch-action: none;
+}
+
+/* Comprehensive Responsive Styles for Mobile & Tablets */
+@media (max-width: 768px) {
+  /* Header Bar */
   .header-bar {
-    padding: 10px 14px;
+    padding: 6px 10px;
+    gap: 8px;
   }
+
+  .brand-icon {
+    width: 30px;
+    height: 30px;
+    font-size: 16px;
+  }
+
   .brand-title {
-    font-size: 18px;
+    font-size: 15px;
+    gap: 4px;
   }
-  .toolbar-floating {
-    top: auto;
-    bottom: 140px;
-    left: 10px;
-    padding: 6px;
-  }
-  .tool-btn span:not(.tool-icon) {
+
+  .brand-badge {
     display: none;
   }
-  .inventory-dock {
-    width: 98%;
-    padding: 8px 10px;
+
+  .header-center {
+    gap: 8px;
   }
+
+  .mode-pills {
+    padding: 2px;
+  }
+
+  .mode-btn {
+    padding: 4px 10px;
+    font-size: 11px;
+  }
+
+  .level-controls {
+    padding: 2px 4px;
+  }
+
+  .level-select {
+    font-size: 12px;
+    padding: 2px 4px;
+    max-width: 120px;
+  }
+
+  .difficulty-badge {
+    display: none;
+  }
+
+  .header-right {
+    gap: 8px;
+  }
+
+  .stat-item {
+    font-size: 11px;
+    gap: 3px;
+  }
+
+  .stat-item:nth-child(3) {
+    display: none; /* Hide hints count in mobile header to save space */
+  }
+
+  /* Toolbar: Move from left vertical stack to a sleek horizontal quick-bar below header */
+  .toolbar-floating {
+    top: 50px;
+    left: 8px;
+    right: 8px;
+    bottom: auto;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 8px;
+    border-radius: 24px;
+    gap: 4px;
+  }
+
+  .tool-group {
+    flex-direction: row;
+    gap: 4px;
+  }
+
+  .tool-divider {
+    width: 1px;
+    height: 20px;
+    margin: 0 2px;
+  }
+
+  .tool-btn {
+    padding: 6px 8px;
+    border-radius: 8px;
+    font-size: 11px;
+  }
+
+  .tool-btn span:not(.tool-icon) {
+    display: none; /* Icon-only on mobile */
+  }
+
+  .tool-icon {
+    font-size: 15px;
+    width: 18px;
+  }
+
+  .kbd-badge {
+    display: none;
+  }
+
+  /* Camera Controls: Position top right below header */
+  .camera-controls-floating {
+    display: none; /* Hide floating camera buttons on mobile, orbit/pinch touch works natively */
+  }
+
+  /* Active Piece HUD: Position right above piece tray for thumb reach */
+  .active-piece-hud {
+    top: auto;
+    bottom: 118px;
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    width: min(94%, 390px);
+    padding: 8px 12px;
+    gap: 8px;
+    border-radius: var(--radius-md);
+    background: rgba(15, 23, 42, 0.95);
+    border: 1px solid var(--accent-cyan);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.75), 0 0 16px rgba(56, 189, 248, 0.35);
+  }
+
+  .active-piece-hud.hidden {
+    transform: translateX(-50%) translateY(30px);
+  }
+
+  .hud-preview {
+    width: 42px;
+    height: 42px;
+    padding: 2px;
+  }
+
+  .hud-title {
+    font-size: 13px;
+  }
+
+  .hud-subtitle {
+    font-size: 10px;
+  }
+
+  .hud-actions {
+    margin-left: auto;
+    gap: 6px;
+  }
+
+  .action-pill-btn {
+    padding: 7px 12px;
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  /* Bottom Inventory Tray */
+  .inventory-dock {
+    bottom: 6px;
+    width: 98%;
+    padding: 6px 8px;
+    gap: 4px;
+    border-radius: var(--radius-md);
+  }
+
+  .dock-header {
+    padding: 0 4px;
+  }
+
+  .dock-title {
+    font-size: 11px;
+  }
+
+  .dock-hint {
+    display: none; /* Hide long instruction text on mobile to avoid overlap */
+  }
+
+  .pieces-rack {
+    gap: 6px;
+    padding: 2px 0 4px 0;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-x;
+  }
+
   .piece-card {
-    min-width: 70px;
-    height: 84px;
+    min-width: 66px;
+    max-width: 74px;
+    height: 74px;
+    padding: 4px;
+  }
+
+  .card-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .card-letter {
+    width: 18px;
+    height: 18px;
+    font-size: 11px;
+  }
+
+  .card-status {
+    font-size: 8px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .card-thumb {
+    height: 38px;
   }
 }

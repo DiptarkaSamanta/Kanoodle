@@ -4,26 +4,26 @@ const PIECE_DEFINITIONS = {
   A: {
     letter: 'A',
     name: 'Lime L-4',
-    color: '#65d920',
-    colorHex: 0x65d920,
-    accent: '#9aff52',
+    color: '#4ade80',
+    colorHex: 0x22c55e,
+    accent: '#86efac',
     spheres: 4,
     coords: [[0, 1], [0, 0], [1, 0], [2, 0]]
   },
   B: {
     letter: 'B',
     name: 'Cherry P-5',
-    color: '#f43f5e',
-    colorHex: 0xf43f5e,
-    accent: '#fb7185',
+    color: '#ff1744',
+    colorHex: 0xff1744,
+    accent: '#ff616f',
     spheres: 5,
     coords: [[0, 0], [1, 0], [0, 1], [1, 1], [2, 1]]
   },
   C: {
     letter: 'C',
     name: 'Indigo Long-L',
-    color: '#3b82f6',
-    colorHex: 0x3b82f6,
+    color: '#2563eb',
+    colorHex: 0x1d4ed8,
     accent: '#60a5fa',
     spheres: 5,
     coords: [[1, 0], [1, 1], [1, 2], [0, 3], [1, 3]]
@@ -31,36 +31,36 @@ const PIECE_DEFINITIONS = {
   D: {
     letter: 'D',
     name: 'Pink Branch-5',
-    color: '#ec4899',
-    colorHex: 0xec4899,
-    accent: '#f472b6',
+    color: '#ff2d87',
+    colorHex: 0xf43f5e,
+    accent: '#fda4af',
     spheres: 5,
     coords: [[0, 0], [1, 0], [2, 0], [3, 0], [2, 1]]
   },
   E: {
     letter: 'E',
     name: 'Orange Z-5',
-    color: '#f97316',
+    color: '#ff6b00',
     colorHex: 0xf97316,
-    accent: '#fb923c',
+    accent: '#fed7aa',
     spheres: 5,
     coords: [[0, 0], [1, 0], [1, 1], [2, 1], [3, 1]]
   },
   F: {
     letter: 'F',
     name: 'Cyan Corner-3',
-    color: '#06b6d4',
+    color: '#00d4ff',
     colorHex: 0x06b6d4,
-    accent: '#22d3ee',
+    accent: '#a5f3fc',
     spheres: 3,
     coords: [[0, 0], [0, 1], [1, 1]]
   },
   G: {
     letter: 'G',
     name: 'Peach V-5',
-    color: '#ff6f61',
-    colorHex: 0xff6f61,
-    accent: '#ffa094',
+    color: '#ff5722',
+    colorHex: 0xf43f5e,
+    accent: '#ff8a65',
     spheres: 5,
     coords: [[0, 0], [1, 0], [2, 0], [2, 1], [2, 2]]
   },
@@ -68,26 +68,26 @@ const PIECE_DEFINITIONS = {
     letter: 'H',
     name: 'Violet Stair-5',
     color: '#a855f7',
-    colorHex: 0xa855f7,
-    accent: '#c084fc',
+    colorHex: 0x9333ea,
+    accent: '#e9d5ff',
     spheres: 5,
     coords: [[0, 0], [1, 0], [1, 1], [2, 1], [2, 2]]
   },
   I: {
     letter: 'I',
     name: 'Sunny U-5',
-    color: '#eab308',
-    colorHex: 0xeab308,
-    accent: '#fde047',
+    color: '#fbbf24',
+    colorHex: 0xf59e0b,
+    accent: '#fef08a',
     spheres: 5,
     coords: [[0, 0], [1, 0], [1, 1], [0, 2], [1, 2]]
   },
   J: {
     letter: 'J',
     name: 'Magenta Line-4',
-    color: '#be185d',
+    color: '#db2777',
     colorHex: 0xbe185d,
-    accent: '#db2777',
+    accent: '#fbcfe8',
     spheres: 4,
     coords: [[0, 0], [1, 0], [2, 0], [3, 0]]
   },
@@ -95,17 +95,17 @@ const PIECE_DEFINITIONS = {
     letter: 'K',
     name: 'Emerald Square-4',
     color: '#10b981',
-    colorHex: 0x10b981,
-    accent: '#34d399',
+    colorHex: 0x059669,
+    accent: '#a7f3d0',
     spheres: 4,
     coords: [[0, 0], [1, 0], [0, 1], [1, 1]]
   },
   L: {
     letter: 'L',
     name: 'Amber Cross-5',
-    color: '#d97706',
+    color: '#ea580c',
     colorHex: 0xd97706,
-    accent: '#f59e0b',
+    accent: '#fed7aa',
     spheres: 5,
     coords: [[1, 0], [0, 1], [1, 1], [2, 1], [1, 2]]
   }
@@ -181,23 +181,20 @@ function createPieceMesh(letter, coords, options = {}) {
     material = new THREE.MeshStandardMaterial({
       color: ghostValid ? 0x22c55e : 0xef4444,
       transparent: true,
-      opacity: 0.55,
+      opacity: 0.6,
       roughness: 0.2,
       metalness: 0.1,
       emissive: ghostValid ? 0x15803d : 0xb91c1c,
-      emissiveIntensity: 0.35
+      emissiveIntensity: 0.5
     });
   } else {
-    // Rich glossy candy plastic / lacquer marble
-    material = new THREE.MeshPhysicalMaterial({
+    // Highly vibrant glossy candy marble material (mobile-safe)
+    material = new THREE.MeshStandardMaterial({
       color: def.colorHex,
-      roughness: 0.12,
-      metalness: 0.06,
-      clearcoat: 0.95,
-      clearcoatRoughness: 0.08,
-      reflectivity: 0.85,
-      ior: 1.52,
-      specularIntensity: 1.0
+      roughness: 0.25,
+      metalness: 0.05,
+      emissive: def.colorHex,
+      emissiveIntensity: 0.12
     });
   }
 
