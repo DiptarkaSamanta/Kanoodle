@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Kanoodle 3D — Ultimate Colorful Puzzle Game</title>
+  <meta name="description" content="Play Kanoodle in stunning 3D with colorful glossy candy beads, smart exact-cover solver, hints, and 24+ challenges!">
+  <link rel="stylesheet" href="./index.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Top Navigation Header -->
+    <header class="header-bar">
+      <div class="brand">
+        <div class="brand-icon">🧩</div>
+        <div class="brand-title">
+          KANOODLE <span class="brand-badge">3D</span>
+        </div>
+      </div>
+
+      <!-- Mode Selector & Level Controls -->
+      <div class="header-center">
+        <div class="mode-pills">
+          <button id="mode-2d" class="mode-btn active" title="Classic 11x5 Flat Tray">
+            <span>🟦</span> 2D Tray
+          </button>
+          <button id="mode-3d" class="mode-btn" title="5-Tier Pyramid Mode">
+            <span>📐</span> 3D Pyramid
+          </button>
+        </div>
+
+        <div class="level-controls">
+          <button id="btn-prev-level" class="icon-btn-sm" title="Previous Level">◀</button>
+          <select id="level-select" class="level-select" aria-label="Select Level"></select>
+          <button id="btn-next-level" class="icon-btn-sm" title="Next Level">▶</button>
+          <span id="difficulty-badge" class="difficulty-badge starter">Starter</span>
+        </div>
+      </div>
+
+      <!-- Stats HUD -->
+      <div class="header-right">
+        <div class="stat-item" title="Time elapsed">
+          <span>⏱️</span>
+          <span id="stat-timer" class="stat-val">00:00</span>
+        </div>
+        <div class="stat-item" title="Placed pieces">
+          <span>🧩</span>
+          <span id="stat-pieces" class="stat-val">0/12</span>
+        </div>
+        <div class="stat-item" title="Hints used">
+          <span>💡</span>
+          <span id="stat-hints" class="stat-val">0</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- 3D Canvas Viewport -->
+    <div id="canvas-container"></div>
+
+    <!-- Left Floating Toolbar -->
+    <div class="toolbar-floating">
+      <div class="tool-group">
+        <button id="btn-rotate" class="tool-btn" title="Rotate Piece (Key: R)">
+          <span class="tool-icon">↻</span>
+          <span>Rotate</span>
+          <span class="kbd-badge">R</span>
+        </button>
+        <button id="btn-flip" class="tool-btn" title="Flip / Mirror Piece (Key: F)">
+          <span class="tool-icon">⇄</span>
+          <span>Flip</span>
+          <span class="kbd-badge">F</span>
+        </button>
+      </div>
+
+      <div class="tool-divider"></div>
+
+      <div class="tool-group">
+        <button id="btn-hint" class="tool-btn accent" title="Give a 1-piece hint (Key: H)">
+          <span class="tool-icon">💡</span>
+          <span>Hint</span>
+          <span class="kbd-badge">H</span>
+        </button>
+        <button id="btn-solve" class="tool-btn primary" title="Auto-solve remaining board">
+          <span class="tool-icon">⚡</span>
+          <span>Auto Solve</span>
+        </button>
+        <button id="btn-validate" class="tool-btn" title="Check if current layout is solvable">
+          <span class="tool-icon">🔍</span>
+          <span>Validate</span>
+        </button>
+      </div>
+
+      <div class="tool-divider"></div>
+
+      <div class="tool-group">
+        <button id="btn-random" class="tool-btn" title="Generate a fresh random puzzle">
+          <span class="tool-icon">🎲</span>
+          <span>Random</span>
+        </button>
+        <button id="btn-reset" class="tool-btn warning" title="Reset level to starter pieces">
+          <span class="tool-icon">↺</span>
+          <span>Reset</span>
+        </button>
+        <button id="btn-clear" class="tool-btn" title="Clear placed pieces">
+          <span class="tool-icon">🗑️</span>
+          <span>Clear</span>
+        </button>
+      </div>
+
+      <div class="tool-divider"></div>
+
+      <div class="tool-group">
+        <button id="btn-sound" class="tool-btn" title="Toggle audio">
+          <span class="tool-icon">🔊</span>
+          <span>Sound</span>
+        </button>
+        <button id="btn-rules" class="tool-btn" title="How to play & controls">
+          <span class="tool-icon">❓</span>
+          <span>Help</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Top-Right Selected Piece HUD -->
+    <div id="active-piece-hud" class="active-piece-hud hidden">
+      <div id="hud-preview" class="hud-preview"></div>
+      <div class="hud-info">
+        <div id="hud-title" class="hud-title">Piece Selected</div>
+        <div class="hud-subtitle">Click board hole to place</div>
+      </div>
+      <div class="hud-actions">
+        <button id="hud-btn-rotate" class="action-pill-btn" title="Rotate (R)">↻ Rotate</button>
+        <button id="hud-btn-flip" class="action-pill-btn" title="Flip (F)">⇄ Flip</button>
+        <button id="hud-btn-cancel" class="action-pill-btn" title="Cancel (Esc)">✕ Cancel</button>
+      </div>
+    </div>
+
+    <!-- Bottom-Right Floating Camera Presets -->
+    <div class="camera-controls-floating">
+      <button id="cam-iso" class="cam-btn" title="Isometric 3D View">📐</button>
+      <button id="cam-top" class="cam-btn" title="Top-Down View (Spacebar)">👁️</button>
+      <button id="cam-front" class="cam-btn" title="Front View">🎯</button>
+    </div>
+
+    <!-- Bottom Inventory Rack / Dock -->
+    <footer class="inventory-dock">
+      <div class="dock-header">
+        <div class="dock-title">
+          <span>🎯</span> Piece Tray (12 Polyspheres)
+        </div>
+        <div class="dock-hint">
+          Click piece to pick up • Hover over board & click to place • Click placed piece to remove
+        </div>
+      </div>
+      <div id="pieces-rack" class="pieces-rack">
+        <!-- Rendered dynamically by game.js -->
+      </div>
+    </footer>
+
+    <!-- Toast Notification -->
+    <div id="toast">Ready!</div>
+
+    <!-- Victory Celebration Modal -->
+    <div id="victory-modal" class="modal-overlay">
+      <div class="modal-card">
+        <div class="modal-trophy">🏆</div>
+        <h2 class="modal-title">PUZZLE SOLVED!</h2>
+        <p class="modal-subtitle">Brilliant spatial reasoning! All 12 pieces fit seamlessly.</p>
+        
+        <div id="modal-stars" class="star-rating">
+          <span class="star">★</span>
+          <span class="star">★</span>
+          <span class="star">★</span>
+        </div>
+
+        <div class="modal-stats">
+          <div class="modal-stat-box">
+            <span class="modal-stat-label">Time</span>
+            <span id="modal-time" class="modal-stat-val">00:45</span>
+          </div>
+          <div class="modal-stat-box">
+            <span class="modal-stat-label">Moves</span>
+            <span id="modal-moves" class="modal-stat-val">12</span>
+          </div>
+          <div class="modal-stat-box">
+            <span class="modal-stat-label">Spheres</span>
+            <span class="modal-stat-val">55</span>
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button id="modal-btn-replay" class="modal-btn secondary">Play Again</button>
+          <button id="modal-btn-next" class="modal-btn primary">Next Level ▶</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Rules / Help Modal -->
+    <div id="rules-modal" class="modal-overlay">
+      <div class="modal-card">
+        <h2 class="modal-title">How To Play Kanoodle</h2>
+        <div class="rules-list">
+          <div><strong>Goal:</strong> Fit all 12 colorful polysphere pieces into the 55 sockets without any overlaps or gaps!</div>
+          <div><strong>Locked Pieces:</strong> Starter pieces marked with 🔒 are fixed by the challenge card. Place the remaining pieces to solve!</div>
+          <div><strong>Controls:</strong>
+            <ul style="margin-left: 20px; margin-top: 6px; display: flex; flex-direction: column; gap: 4px;">
+              <li><span class="key-badge">Click Piece</span> Pick up piece from tray</li>
+              <li><span class="key-badge">R</span> or <span class="key-badge">Scroll Wheel</span> Rotate piece 90°</li>
+              <li><span class="key-badge">F</span> Flip / mirror piece</li>
+              <li><span class="key-badge">Left Click Board</span> Place piece into sockets</li>
+              <li><span class="key-badge">Click Placed Piece</span> Pick it back up</li>
+              <li><span class="key-badge">Esc</span> or <span class="key-badge">Right Click</span> Deselect</li>
+              <li><span class="key-badge">Right Click + Drag</span> Rotate 3D camera</li>
+            </ul>
+          </div>
+          <div><strong>Smart Tools:</strong> Use <strong>Hint</strong> 💡 for a single-piece nudge, or <strong>Auto Solve</strong> ⚡ to watch the exact-cover algorithm complete the puzzle!</div>
+        </div>
+        <div class="modal-actions">
+          <button id="rules-close-btn" class="modal-btn primary">Got It!</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="./three.min.js"></script>
+  <script src="./OrbitControls.js"></script>
+  <script src="./confetti.browser.min.js"></script>
+  <script src="./src/audio.js"></script>
+  <script src="./src/pieces.js"></script>
+  <script src="./src/solver.js"></script>
+  <script src="./src/levels.js"></script>
+  <script src="./src/game.js"></script>
+</body>
+</html>
