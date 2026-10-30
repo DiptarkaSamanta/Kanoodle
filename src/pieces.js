@@ -4,6 +4,7 @@ const PIECE_DEFINITIONS = {
   A: {
     letter: 'A',
     name: 'Lime L-4',
+    colorName: 'Lime',
     color: '#4ade80',
     colorHex: 0x22c55e,
     accent: '#86efac',
@@ -13,6 +14,7 @@ const PIECE_DEFINITIONS = {
   B: {
     letter: 'B',
     name: 'Cherry P-5',
+    colorName: 'Cherry',
     color: '#ff1744',
     colorHex: 0xff1744,
     accent: '#ff616f',
@@ -22,6 +24,7 @@ const PIECE_DEFINITIONS = {
   C: {
     letter: 'C',
     name: 'Indigo Long-L',
+    colorName: 'Indigo',
     color: '#2563eb',
     colorHex: 0x1d4ed8,
     accent: '#60a5fa',
@@ -31,6 +34,7 @@ const PIECE_DEFINITIONS = {
   D: {
     letter: 'D',
     name: 'Pink Branch-5',
+    colorName: 'Pink',
     color: '#ff2d87',
     colorHex: 0xf43f5e,
     accent: '#fda4af',
@@ -40,6 +44,7 @@ const PIECE_DEFINITIONS = {
   E: {
     letter: 'E',
     name: 'Orange Z-5',
+    colorName: 'Orange',
     color: '#ff6b00',
     colorHex: 0xf97316,
     accent: '#fed7aa',
@@ -49,6 +54,7 @@ const PIECE_DEFINITIONS = {
   F: {
     letter: 'F',
     name: 'Cyan Corner-3',
+    colorName: 'Cyan',
     color: '#00d4ff',
     colorHex: 0x06b6d4,
     accent: '#a5f3fc',
@@ -58,6 +64,7 @@ const PIECE_DEFINITIONS = {
   G: {
     letter: 'G',
     name: 'Peach V-5',
+    colorName: 'Peach',
     color: '#ff5722',
     colorHex: 0xf43f5e,
     accent: '#ff8a65',
@@ -67,6 +74,7 @@ const PIECE_DEFINITIONS = {
   H: {
     letter: 'H',
     name: 'Violet Stair-5',
+    colorName: 'Violet',
     color: '#a855f7',
     colorHex: 0x9333ea,
     accent: '#e9d5ff',
@@ -76,6 +84,7 @@ const PIECE_DEFINITIONS = {
   I: {
     letter: 'I',
     name: 'Sunny U-5',
+    colorName: 'Sunny',
     color: '#fbbf24',
     colorHex: 0xf59e0b,
     accent: '#fef08a',
@@ -85,6 +94,7 @@ const PIECE_DEFINITIONS = {
   J: {
     letter: 'J',
     name: 'Magenta Line-4',
+    colorName: 'Magenta',
     color: '#db2777',
     colorHex: 0xbe185d,
     accent: '#fbcfe8',
@@ -94,6 +104,7 @@ const PIECE_DEFINITIONS = {
   K: {
     letter: 'K',
     name: 'Emerald Square-4',
+    colorName: 'Emerald',
     color: '#10b981',
     colorHex: 0x059669,
     accent: '#a7f3d0',
@@ -103,6 +114,7 @@ const PIECE_DEFINITIONS = {
   L: {
     letter: 'L',
     name: 'Amber Cross-5',
+    colorName: 'Amber',
     color: '#ea580c',
     colorHex: 0xd97706,
     accent: '#fed7aa',
@@ -116,6 +128,7 @@ const EXTENDED_PIECE_DEFINITIONS = {
   M: {
     letter: 'M',
     name: 'Dot-1',
+    colorName: 'Ruby',
     color: '#f43f5e',
     colorHex: 0xf43f5e,
     accent: '#fda4af',
@@ -125,6 +138,7 @@ const EXTENDED_PIECE_DEFINITIONS = {
   N: {
     letter: 'N',
     name: 'Domino-2',
+    colorName: 'Sky',
     color: '#0ea5e9',
     colorHex: 0x0ea5e9,
     accent: '#7dd3fc',
@@ -134,6 +148,7 @@ const EXTENDED_PIECE_DEFINITIONS = {
   O: {
     letter: 'O',
     name: 'Tromino-3',
+    colorName: 'Tangerine',
     color: '#f97316',
     colorHex: 0xf97316,
     accent: '#fdba74',
@@ -143,6 +158,7 @@ const EXTENDED_PIECE_DEFINITIONS = {
   P: {
     letter: 'P',
     name: 'T-Tetra-4',
+    colorName: 'Purple',
     color: '#a855f7',
     colorHex: 0xa855f7,
     accent: '#d8b4fe',
@@ -152,6 +168,7 @@ const EXTENDED_PIECE_DEFINITIONS = {
   Q: {
     letter: 'Q',
     name: 'Z-Tetra-4',
+    colorName: 'Fuchsia',
     color: '#ec4899',
     colorHex: 0xec4899,
     accent: '#f472b6',
@@ -161,6 +178,7 @@ const EXTENDED_PIECE_DEFINITIONS = {
   R: {
     letter: 'R',
     name: 'Line-5',
+    colorName: 'Teal',
     color: '#14b8a6',
     colorHex: 0x14b8a6,
     accent: '#5eead4',
@@ -170,6 +188,7 @@ const EXTENDED_PIECE_DEFINITIONS = {
   S: {
     letter: 'S',
     name: 'F-Penta-5',
+    colorName: 'Rose',
     color: '#e11d48',
     colorHex: 0xe11d48,
     accent: '#fb7185',
@@ -179,6 +198,7 @@ const EXTENDED_PIECE_DEFINITIONS = {
   T: {
     letter: 'T',
     name: 'Big-T-5',
+    colorName: 'Lavender',
     color: '#6366f1',
     colorHex: 0x6366f1,
     accent: '#a5b4fc',
@@ -187,25 +207,28 @@ const EXTENDED_PIECE_DEFINITIONS = {
   },
   U: {
     letter: 'U',
-    name: 'Stair-W-5',
+    name: 'Crown-6',
+    colorName: 'Chartreuse',
     color: '#84cc16',
     colorHex: 0x84cc16,
     accent: '#bef264',
-    spheres: 5,
-    coords: [[0, 0], [0, 1], [1, 1], [1, 2], [2, 2]]
+    spheres: 6,
+    coords: [[0, 0], [2, 0], [0, 1], [1, 1], [2, 1], [1, 2]]
   },
   V: {
     letter: 'V',
-    name: 'N-Penta-5',
+    name: 'Big-V-6',
+    colorName: 'Gold',
     color: '#eab308',
     colorHex: 0xeab308,
     accent: '#fef08a',
-    spheres: 5,
-    coords: [[0, 0], [1, 0], [1, 1], [2, 1], [3, 1]]
+    spheres: 6,
+    coords: [[0, 0], [1, 0], [2, 0], [3, 0], [3, 1], [3, 2]]
   },
   W: {
     letter: 'W',
     name: 'Block-6',
+    colorName: 'Grape',
     color: '#7e22ce',
     colorHex: 0x7e22ce,
     accent: '#c084fc',
@@ -215,11 +238,32 @@ const EXTENDED_PIECE_DEFINITIONS = {
   X: {
     letter: 'X',
     name: 'Stair-6',
+    colorName: 'Bronze',
     color: '#d97706',
     colorHex: 0xd97706,
     accent: '#fcd34d',
     spheres: 6,
     coords: [[0, 0], [1, 0], [1, 1], [2, 1], [2, 2], [3, 2]]
+  },
+  Y: {
+    letter: 'Y',
+    name: 'Turquoise Cross-6',
+    colorName: 'Turquoise',
+    color: '#06b6d4',
+    colorHex: 0x06b6d4,
+    accent: '#67e8f9',
+    spheres: 6,
+    coords: [[1, 0], [1, 1], [0, 2], [1, 2], [2, 2], [1, 3]]
+  },
+  Z: {
+    letter: 'Z',
+    name: 'Coral Lightning-6',
+    colorName: 'Coral',
+    color: '#f43f5e',
+    colorHex: 0xf43f5e,
+    accent: '#fda4af',
+    spheres: 6,
+    coords: [[0, 0], [1, 0], [1, 1], [1, 2], [2, 2], [2, 3]]
   }
 };
 
@@ -330,6 +374,15 @@ function createPieceMesh(letter, coords, options = {}) {
       metalness: 0.1,
       emissive: ghostValid ? 0x15803d : 0xb91c1c,
       emissiveIntensity: 0.5
+    });
+  } else if (options.isGolden) {
+    // Rich gleaming golden metallic material for locked custom starter clues
+    material = new THREE.MeshStandardMaterial({
+      color: 0xfbbf24,
+      roughness: 0.18,
+      metalness: 0.82,
+      emissive: 0xd97706,
+      emissiveIntensity: 0.4
     });
   } else {
     // Highly vibrant glossy candy marble material (mobile-safe)

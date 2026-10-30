@@ -51,11 +51,14 @@ class KanoodleSolver {
     });
   }
 
-  // Exact cover recursion
-  solveExactCover(X, Y, solution = [], maxCount = 1) {
+  // Exact cover recursion with step limit
+  solveExactCover(X, Y, solution = [], maxCount = 1, maxSteps = 50000) {
     const results = [];
+    let steps = 0;
 
     const search = () => {
+      steps++;
+      if (steps > maxSteps) return true; // Step limit reached
       if (X.size === 0) {
         results.push([...solution]);
         return results.length >= maxCount;
@@ -349,7 +352,7 @@ class KanoodleSolver {
       });
     });
 
-    const rawSolutions = this.solveExactCover(X, Y, [], maxSolutions);
+    const rawSolutions = this.solveExactCover(X, Y, [], maxSolutions, 40000);
     if (!rawSolutions || rawSolutions.length === 0) return null;
 
     const solutions = rawSolutions.map(solRows => {
@@ -361,6 +364,250 @@ class KanoodleSolver {
     });
 
     return maxSolutions === 1 ? solutions[0] : solutions;
+  }
+
+  // Exact cover with per-piece multiplicity limit and diversity sorting
+  solveExactCoverDiverse(X, Y, rowPieces, maxPerPiece = 2, maxSteps = 45000) {
+    const results = [];
+    const solution = [];
+    const pieceCounts = {};
+    let steps = 0;
+
+    const search = () => {
+      steps++;
+      if (steps > maxSteps) return true;
+      if (X.size === 0) {
+        results.push([...solution]);
+        return true;
+      }
+
+      // Choose column with minimum options
+      let minCol = null;
+      let minSize = Infinity;
+      for (const [col, rowSet] of X.entries()) {
+        if (rowSet.size < minSize) {
+          minSize = rowSet.size;
+          minCol = col;
+          if (minSize === 0) break;
+        }
+      }
+
+      if (minSize === 0 || minCol === null) return false;
+
+      // Sort candidate rows to strictly prioritize unused pieces first
+      const candidateRows = Array.from(X.get(minCol));
+      candidateRows.sort((rA, rB) => {
+        const pA = rowPieces[rA];
+        const pB = rowPieces[rB];
+        const cntA = pieceCounts[pA] || 0;
+        const cntB = pieceCounts[pB] || 0;
+        if (cntA !== cntB) return cntA - cntB;
+        return 0;
+      });
+
+      for (const r of candidateRows) {
+        const p = rowPieces[r];
+        const curCount = pieceCounts[p] || 0;
+        if (curCount >= maxPerPiece) {
+          continue; // Enforce maximum multiplicity per piece kind!
+        }
+
+        pieceCounts[p] = curCount + 1;
+        solution.push(r);
+        const removedCols = [];
+
+        for (const j of Y[r]) {
+          const rowsInCol = X.get(j);
+          if (!rowsInCol) continue;
+          for (const i of rowsInCol) {
+            for (const k of Y[i]) {
+              if (k !== j && X.has(k)) {
+                X.get(k).delete(i);
+              }
+            }
+          }
+          removedCols.push({ col: j, set: rowsInCol });
+          X.delete(j);
+        }
+
+        const done = search();
+        solution.pop();
+        pieceCounts[p]--;
+        if (pieceCounts[p] === 0) delete pieceCounts[p];
+
+        for (let idx = removedCols.length - 1; idx >= 0; idx--) {
+          const { col: j, set: rowsInCol } = removedCols[idx];
+          X.set(j, rowsInCol);
+          for (const i of rowsInCol) {
+            for (const k of Y[i]) {
+              if (k !== j && X.has(k)) {
+                X.get(k).add(i);
+              }
+            }
+          }
+        }
+
+        if (done) return true;
+      }
+      return false;
+    };
+
+    search();
+    return results;
+  }
+
+  // Guaranteed Solvable Board Tiler:
+  // Automatically computes a valid tiling solution of any arbitrary board using exact cover,
+  // strictly enforcing piece diversity and no more than 2-3 of any single kind unless small or fully unsolvable.
+  tileCustomBoard({ width, height, activeHoles, inventory = {}, fixedPieces = [] }, maxSteps = 45000) {
+    const activeSet = new Set();
+    if (activeHoles) {
+      activeHoles.forEach(h => {
+        if (Array.isArray(h)) activeSet.add(`${h[0]},${h[1]}`);
+        else if (typeof h === 'string') activeSet.add(h);
+      });
+    }
+
+    // Check sockets occupied by fixedPieces (golden locked starter pieces)
+    const fixedCovered = new Set();
+    const fixedList = [];
+    let fixedSpheres = 0;
+
+    (fixedPieces || []).forEach((fp, idx) => {
+      const def = window.getPieceDef ? window.getPieceDef(fp.piece) : (window.PIECE_DEFINITIONS ? window.PIECE_DEFINITIONS[fp.piece] : null);
+      fixedList.push({
+        instanceId: fp.instanceId || `${fp.piece}_fixed_${idx}`,
+        piece: fp.piece,
+        coords: fp.coords,
+        row: fp.row,
+        col: fp.col,
+        locked: true
+      });
+      fixedSpheres += def ? def.spheres : fp.coords.length;
+      fp.coords.forEach(([dx, dy]) => {
+        fixedCovered.add(`${fp.row + dy},${fp.col + dx}`);
+      });
+    });
+
+    const holes = Array.from(activeSet).filter(h => !fixedCovered.has(h));
+    if (holes.length === 0) {
+      return {
+        solution: fixedList,
+        pieceCounts: {},
+        totalSpheres: fixedSpheres
+      };
+    }
+
+    const holeIndex = new Map();
+    holes.forEach((h, idx) => holeIndex.set(h, idx));
+
+    const preferred = Object.entries(inventory)
+      .filter(([_, count]) => count > 0)
+      .map(([letter]) => letter);
+
+    // Diverse piece library: Canonical pieces + distinct extended pentas & tetras
+    const canonical = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'];
+    const extendedDiverse = ['U', 'S', 'T', 'V', 'R', 'P', 'Q', 'W', 'X', 'Y', 'Z'];
+    const fillers = ['O', 'N', 'M'];
+    const customKeys = Object.keys(window.CUSTOM_PIECES || {});
+
+    // Helper to run tiling with candidate piece keys and maxPerPiece constraint
+    const runTiling = (candidates, maxPerPiece) => {
+      const X = new Map();
+      holes.forEach((_, idx) => X.set(idx, new Set()));
+
+      const Y = [];
+      const rowMeta = [];
+      const rowPieces = [];
+
+      candidates.forEach(key => {
+        const def = window.getPieceDef ? window.getPieceDef(key) : (window.PIECE_DEFINITIONS ? window.PIECE_DEFINITIONS[key] : null);
+        if (!def || !def.orientations) return;
+
+        def.orientations.forEach(shape => {
+          const maxX = Math.max(...shape.map(([x]) => x));
+          const maxY = Math.max(...shape.map(([, y]) => y));
+
+          for (let r = 0; r <= height - 1 - maxY; r++) {
+            for (let c = 0; c <= width - 1 - maxX; c++) {
+              let fits = true;
+              const coveredCols = [];
+              for (const [dx, dy] of shape) {
+                const hKey = `${r + dy},${c + dx}`;
+                const col = holeIndex.get(hKey);
+                if (col === undefined) {
+                  fits = false;
+                  break;
+                }
+                coveredCols.push(col);
+              }
+
+              if (fits) {
+                const rIdx = Y.length;
+                Y.push(coveredCols);
+                rowMeta.push({ piece: key, coords: shape, row: r, col: c });
+                rowPieces.push(key);
+                coveredCols.forEach(j => {
+                  X.get(j).add(rIdx);
+                });
+              }
+            }
+          }
+        });
+      });
+
+      const raw = this.solveExactCoverDiverse(X, Y, rowPieces, maxPerPiece, maxSteps);
+      if (!raw || raw.length === 0) return null;
+
+      const solRows = raw[0];
+      const sol = [...fixedList];
+      const counts = {};
+      let totalSpheres = fixedSpheres;
+
+      solRows.forEach(rIdx => {
+        const p = rowMeta[rIdx];
+        const instIndex = counts[p.piece] || 0;
+        counts[p.piece] = instIndex + 1;
+        const def = window.getPieceDef ? window.getPieceDef(p.piece) : window.PIECE_DEFINITIONS[p.piece];
+        totalSpheres += def ? def.spheres : p.coords.length;
+        sol.push({
+          instanceId: `${p.piece}_${instIndex}`,
+          piece: p.piece,
+          coords: p.coords,
+          row: p.row,
+          col: p.col
+        });
+      });
+
+      return {
+        solution: sol,
+        pieceCounts: counts,
+        totalSpheres: totalSpheres
+      };
+    };
+
+    // Candidates pool prioritizing custom shapes, preferred pieces, canonical, and extended
+    const candidatesPool = Array.from(new Set([
+      ...customKeys,
+      ...preferred,
+      ...canonical,
+      ...extendedDiverse,
+      ...fillers
+    ]));
+
+    // Pass 1: Maximum piece diversity — at most 2 of any single kind
+    const isSmallBoard = holes.length <= 10;
+    const initialLimit = isSmallBoard ? 3 : 2;
+
+    let result = runTiling(candidatesPool, initialLimit);
+    if (result) return result;
+
+    // Pass 2: High diversity — at most 3 of any single piece
+    result = runTiling(candidatesPool, 3);
+    if (result) return result;
+
+    // Pass 3: Fallback ONLY if board has very few holes or is strictly unsolvable with <=3
+    return runTiling(candidatesPool, 8);
   }
 
   getCustomHint(customContext) {

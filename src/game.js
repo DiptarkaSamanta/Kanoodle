@@ -23,6 +23,7 @@ class KanoodleGame {
     this.ghostMesh = null;
     this.hoverPos = null; // { row, col, valid }
     this.isSolving = false;
+    this.isViewingSolution = false;
 
     // Stats
     this.timerSeconds = 0;
@@ -280,6 +281,13 @@ class KanoodleGame {
     this.deselectPiece();
     this.initBoard();
 
+    // Place any locked challenge starter pieces
+    if (config.fixedPieces && config.fixedPieces.length > 0) {
+      config.fixedPieces.forEach((p, idx) => {
+        this.placePiece(p.piece, p.coords, p.row, p.col, true, p.instanceId || `${p.piece}_fixed_${idx}`);
+      });
+    }
+
     // Rebuild dock for custom inventory
     this.renderCustomDockUI();
 
@@ -494,6 +502,19 @@ class KanoodleGame {
     if (index < 0 || index >= this.levels.length) index = 0;
     this.currentLevelIndex = index;
     this.currentLevel = this.levels[index];
+    this.isViewingSolution = false;
+
+    if (this.mode !== '2d') {
+      this.mode = '2d';
+      const btn2D = document.getElementById('mode-2d');
+      const btn3D = document.getElementById('mode-3d');
+      const btnCustom = document.getElementById('mode-custom');
+      if (btnCustom) btnCustom.classList.remove('active');
+      if (btn3D) btn3D.classList.remove('active');
+      if (btn2D) btn2D.classList.add('active');
+      this.initBoard();
+      this.initUI();
+    }
 
     // Reset board
     this.clearBoard(false);
@@ -533,7 +554,7 @@ class KanoodleGame {
   }
 
   // Place a piece onto board
-  placePiece(letter, coords, row, col, locked = false, instanceId = null) {
+  placePiece(letter, coords, row, col, locked = false, instanceId = null, isGolden = false) {
     const def = window.getPieceDef ? window.getPieceDef(letter) : window.PIECE_DEFINITIONS[letter];
     if (!def) return false;
 
@@ -562,8 +583,9 @@ class KanoodleGame {
       this.boardState[row + dy][col + dx] = letter;
     }
 
-    // Create 3D Mesh
-    const mesh = window.createPieceMesh(letter, coords, { isGhost: false });
+    // Create 3D Mesh (Golden metallic for locked custom starter pieces!)
+    const isGold = isGolden || (locked && this.mode === 'custom');
+    const mesh = window.createPieceMesh(letter, coords, { isGhost: false, isGolden: isGold });
     const spacing = window.SPHERE_SPACING || 2.0;
     const offsetX = -((this.gridW - 1) * spacing) / 2;
     const offsetZ = -((this.gridH - 1) * spacing) / 2;
@@ -592,8 +614,10 @@ class KanoodleGame {
       : 55;
     const filledSpheres = this.placedPieces.reduce((acc, p) => acc + p.coords.length, 0);
 
-    if (filledSpheres === totalExpectedHoles) {
-      setTimeout(() => this.celebrateVictory(), 300);
+    if (filledSpheres === totalExpectedHoles && !this.isViewingSolution) {
+      setTimeout(() => {
+        if (!this.isViewingSolution) this.celebrateVictory();
+      }, 300);
     }
 
     return true;
@@ -606,6 +630,8 @@ class KanoodleGame {
       if (window.soundEngine) window.soundEngine.playError();
       return false;
     }
+
+    this.isViewingSolution = false;
 
     // Unmark board state
     for (const [dx, dy] of pieceRecord.coords) {
@@ -820,7 +846,15 @@ class KanoodleGame {
         }))
       };
 
-      const fullSolution = window.kanoodleSolver.solveCustom(customContext, 1);
+      let fullSolution = window.kanoodleSolver.solveCustom(customContext, 1);
+      if (!fullSolution && this.customConfig.solution) {
+        // Conflicting pieces placed by player; reset to apply verified solution while preserving locked starter clues!
+        const hasLocked = this.placedPieces.some(p => p.locked);
+        this.clearBoard(hasLocked);
+        fullSolution = this.customConfig.solution;
+        this.showToast("Clearing conflicting moves to place guaranteed solution... ⚡");
+      }
+
       if (!fullSolution) {
         this.showToast("Custom board layout is unsolvable! Remove conflicting pieces first.");
         if (window.soundEngine) window.soundEngine.playError();
@@ -972,7 +1006,12 @@ class KanoodleGame {
     if (timerEl) timerEl.textContent = this.formatTime(this.timerSeconds);
 
     const piecesEl = document.getElementById('stat-pieces');
-    if (piecesEl) piecesEl.textContent = `${this.placedPieces.length}/12`;
+    if (piecesEl) {
+      const totalPieces = this.mode === 'custom' && this.customConfig
+        ? (this.customConfig.inventory || []).length
+        : 12;
+      piecesEl.textContent = `${this.placedPieces.length}/${totalPieces}`;
+    }
 
     const hintsEl = document.getElementById('stat-hints');
     if (hintsEl) hintsEl.textContent = this.hintsCount;
@@ -1036,6 +1075,32 @@ class KanoodleGame {
   }
 
   updateDockUI() {
+    if (this.mode === 'custom' && this.customConfig) {
+      const placedIds = new Set(this.placedPieces.map(p => p.instanceId));
+      (this.customConfig.inventory || []).forEach(inst => {
+        const card = document.getElementById(`piece-card-${inst.instanceId}`);
+        if (!card) return;
+
+        const isPlaced = placedIds.has(inst.instanceId);
+        const isSelected = this.selectedPiece && this.selectedPiece.instanceId === inst.instanceId;
+
+        card.classList.toggle('placed', isPlaced);
+        card.classList.toggle('selected', isSelected);
+
+        const status = card.querySelector('.card-status');
+        if (status) {
+          if (isPlaced) {
+            const rec = this.placedPieces.find(p => p.instanceId === inst.instanceId);
+            status.textContent = rec && rec.locked ? 'Locked 🔒' : 'Placed ✓';
+          } else {
+            const def = window.getPieceDef ? window.getPieceDef(inst.letter) : window.PIECE_DEFINITIONS[inst.letter];
+            status.textContent = `#${inst.index + 1} (${def ? def.spheres : 0}b)`;
+          }
+        }
+      });
+      return;
+    }
+
     const placedSet = new Set(this.placedPieces.map(p => p.piece));
     Object.keys(window.PIECE_DEFINITIONS).forEach(letter => {
       const card = document.getElementById(`piece-card-${letter}`);
@@ -1109,10 +1174,22 @@ class KanoodleGame {
       const movesEl = document.getElementById('modal-moves');
       if (movesEl) movesEl.textContent = this.movesCount;
 
+      const spheresEl = document.getElementById('modal-spheres');
+      if (spheresEl) {
+        spheresEl.textContent = this.mode === 'custom' && this.customConfig
+          ? this.customConfig.totalHoles
+          : 55;
+      }
+
       const starsEl = document.getElementById('modal-stars');
       if (starsEl) {
         const starCount = this.hintsCount === 0 ? 3 : this.hintsCount === 1 ? 2 : 1;
         starsEl.innerHTML = '★'.repeat(starCount) + '<span class="star empty">' + '★'.repeat(3 - starCount) + '</span>';
+      }
+
+      const nextBtn = document.getElementById('modal-btn-next');
+      if (nextBtn) {
+        nextBtn.textContent = this.mode === 'custom' ? 'Custom Studio 🎨' : 'Next Level ▶';
       }
     }
   }
@@ -1169,6 +1246,114 @@ class KanoodleGame {
       if (this.boardState[r][c] !== null) return false;
     }
     return true;
+  }
+
+  replayCurrentLevel() {
+    this.isViewingSolution = false;
+    this.deselectPiece();
+    const modal = document.getElementById('victory-modal');
+    if (modal) modal.classList.remove('show');
+
+    if (this.mode === 'custom' && this.customConfig) {
+      this.loadCustomBoard(this.customConfig);
+    } else {
+      this.loadLevel(this.currentLevelIndex);
+    }
+  }
+
+  playNextStage() {
+    this.isViewingSolution = false;
+    this.deselectPiece();
+    const modal = document.getElementById('victory-modal');
+    if (modal) modal.classList.remove('show');
+
+    if (this.mode === 'custom') {
+      this.mode = '2d';
+      const btn2D = document.getElementById('mode-2d');
+      const btnCustom = document.getElementById('mode-custom');
+      if (btnCustom) btnCustom.classList.remove('active');
+      if (btn2D) btn2D.classList.add('active');
+      this.loadLevel(this.currentLevelIndex + 1);
+      this.showToast(`Advancing to Stage ${this.currentLevelIndex + 1}: ${this.levels[this.currentLevelIndex].title}! 🎯`);
+    } else {
+      const nextIdx = (this.currentLevelIndex + 1) % this.levels.length;
+      this.loadLevel(nextIdx);
+      this.showToast(`Advancing to Stage ${nextIdx + 1}: ${this.levels[nextIdx].title}! 🎯`);
+    }
+  }
+
+  applyFullSolution() {
+    this.isViewingSolution = true;
+    this.deselectPiece();
+    const modal = document.getElementById('victory-modal');
+    if (modal) modal.classList.remove('show');
+
+    // Pause timer so player has unlimited uninterrupted time to inspect the solution
+    if (this.timerInterval) {
+      clearInterval(this.timerInterval);
+      this.timerInterval = null;
+    }
+
+    if (this.mode === 'custom' && this.customConfig) {
+      const sol = this.customConfig.solution;
+      if (sol && sol.length > 0) {
+        const fixedPieces = this.customConfig.fixedPieces || [];
+        this.clearBoard(false);
+
+        // Re-place fixed clues as locked (golden)
+        fixedPieces.forEach((p, idx) => {
+          this.placePiece(p.piece, p.coords, p.row, p.col, true, p.instanceId || `${p.piece}_fixed_${idx}`);
+        });
+
+        // Place all other solution pieces as UNLOCKED so player can pick them up and play again!
+        sol.forEach((p, idx) => {
+          const isFixed = fixedPieces.some(fp => 
+            fp.piece === p.piece && fp.row === p.row && fp.col === p.col
+          );
+          if (!isFixed) {
+            this.placePiece(p.piece, p.coords, p.row, p.col, false, p.instanceId || `${p.piece}_sol_${idx}`);
+          }
+        });
+
+        this.updateDockUI();
+        this.updateStats();
+        this.showToast("👁️ Solution displayed! Unlimited time to study. Pick up any piece or click 'Play Next Stage'.");
+        if (window.soundEngine) window.soundEngine.playHint();
+        return;
+      }
+    }
+
+    // Standard 2D level
+    if (this.currentLevel) {
+      const startingClues = (this.currentLevel.placed || []).map(p => ({
+        piece: p.piece,
+        coords: p.coords,
+        row: p.row,
+        col: p.col
+      }));
+      const sol = window.kanoodleSolver ? window.kanoodleSolver.solve(startingClues, 1) : null;
+      if (sol && sol.length > 0) {
+        this.clearBoard(false);
+        if (this.currentLevel.placed) {
+          this.currentLevel.placed.forEach(p => {
+            this.placePiece(p.piece, p.coords, p.row, p.col, true);
+          });
+        }
+        const placedLetters = new Set(this.placedPieces.map(p => p.piece));
+        sol.forEach(p => {
+          if (!placedLetters.has(p.piece)) {
+            this.placePiece(p.piece, p.coords, p.row, p.col, false);
+          }
+        });
+        this.updateDockUI();
+        this.updateStats();
+        this.showToast("👁️ Solution displayed! Unlimited time to study. Pick up any piece or click 'Play Next Stage'.");
+        if (window.soundEngine) window.soundEngine.playHint();
+        return;
+      }
+    }
+
+    this.showToast("No verified solution found for this board.");
   }
 
   bindEvents() {
@@ -1427,6 +1612,9 @@ class KanoodleGame {
       });
     }
 
+    document.getElementById('btn-open-studio')?.addEventListener('click', () => {
+      if (window.customStudio) window.customStudio.open();
+    });
     document.getElementById('btn-custom-studio')?.addEventListener('click', () => {
       if (window.customStudio) window.customStudio.open();
     });
@@ -1437,8 +1625,9 @@ class KanoodleGame {
     document.getElementById('btn-hint')?.addEventListener('click', () => this.giveHint());
     document.getElementById('btn-solve')?.addEventListener('click', () => this.autoSolve());
     document.getElementById('btn-validate')?.addEventListener('click', () => this.validateBoard());
+    document.getElementById('btn-next-stage')?.addEventListener('click', () => this.playNextStage());
     document.getElementById('btn-random')?.addEventListener('click', () => this.generateRandomPuzzle());
-    document.getElementById('btn-reset')?.addEventListener('click', () => this.loadLevel(this.currentLevelIndex));
+    document.getElementById('btn-reset')?.addEventListener('click', () => this.replayCurrentLevel());
     document.getElementById('btn-clear')?.addEventListener('click', () => this.clearBoard(true));
 
     document.getElementById('hud-btn-rotate')?.addEventListener('click', () => this.rotateSelected());
@@ -1447,6 +1636,7 @@ class KanoodleGame {
 
     document.getElementById('btn-prev-level')?.addEventListener('click', () => this.loadLevel(this.currentLevelIndex - 1));
     document.getElementById('btn-next-level')?.addEventListener('click', () => this.loadLevel(this.currentLevelIndex + 1));
+    document.getElementById('btn-see-solution-header')?.addEventListener('click', () => this.applyFullSolution());
 
     // Camera preset buttons
     document.getElementById('cam-iso')?.addEventListener('click', () => this.setCameraPreset('isometric'));
@@ -1466,11 +1656,19 @@ class KanoodleGame {
     // Victory Modal Buttons
     document.getElementById('modal-btn-next')?.addEventListener('click', () => {
       document.getElementById('victory-modal').classList.remove('show');
-      this.loadLevel(this.currentLevelIndex + 1);
+      if (this.mode === 'custom') {
+        if (window.customStudio) window.customStudio.open();
+      } else {
+        this.loadLevel(this.currentLevelIndex + 1);
+      }
     });
     document.getElementById('modal-btn-replay')?.addEventListener('click', () => {
       document.getElementById('victory-modal').classList.remove('show');
-      this.loadLevel(this.currentLevelIndex);
+      this.replayCurrentLevel();
+    });
+    document.getElementById('modal-btn-see-solution')?.addEventListener('click', () => {
+      document.getElementById('victory-modal').classList.remove('show');
+      this.applyFullSolution();
     });
 
     // Rules / How to play modal

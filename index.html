@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Kanoodle 3D — Ultimate Colorful Puzzle Game</title>
   <meta name="description" content="Play Kanoodle in stunning 3D with colorful glossy candy beads, smart exact-cover solver, hints, and 24+ challenges!">
-  <link rel="stylesheet" href="./index.css">
+  <link rel="stylesheet" href="./index.css?v=17">
 </head>
 <body>
   <div id="app">
@@ -36,6 +36,7 @@
           <button id="btn-prev-level" class="icon-btn-sm" title="Previous Level">◀</button>
           <select id="level-select" class="level-select" aria-label="Select Level"></select>
           <button id="btn-next-level" class="icon-btn-sm" title="Next Level">▶</button>
+          <button id="btn-see-solution-header" class="header-solution-btn" title="Display complete verified solution on board">👁️ See Solution</button>
           <span id="difficulty-badge" class="difficulty-badge starter">Starter</span>
         </div>
       </div>
@@ -94,6 +95,10 @@
         <button id="btn-validate" class="tool-btn" title="Check if current layout is solvable">
           <span class="tool-icon">🔍</span>
           <span>Validate</span>
+        </button>
+        <button id="btn-next-stage" class="tool-btn next-stage" title="Advance to the next stage / level">
+          <span class="tool-icon">⏭️</span>
+          <span>Play Next Stage</span>
         </button>
       </div>
 
@@ -191,12 +196,13 @@
           </div>
           <div class="modal-stat-box">
             <span class="modal-stat-label">Spheres</span>
-            <span class="modal-stat-val">55</span>
+            <span id="modal-spheres" class="modal-stat-val">55</span>
           </div>
         </div>
 
         <div class="modal-actions">
           <button id="modal-btn-replay" class="modal-btn secondary">Play Again</button>
+          <button id="modal-btn-see-solution" class="modal-btn accent" title="Display complete solved board and play again">👁️ See Solution</button>
           <button id="modal-btn-next" class="modal-btn primary">Next Level ▶</button>
         </div>
       </div>
@@ -255,16 +261,18 @@
 
           <!-- Board Painter Controls -->
           <div class="painter-controls-bar">
-            <div class="dimension-control">
-              <label for="custom-width-input">Width (Columns):</label>
-              <input type="number" id="custom-width-input" min="3" max="14" value="8">
-            </div>
-            <div class="dimension-control">
-              <label for="custom-height-input">Height (Rows):</label>
-              <input type="number" id="custom-height-input" min="3" max="10" value="6">
+            <div class="dimension-controls-wrap">
+              <div class="dimension-control">
+                <label for="custom-width-input">Width (Columns):</label>
+                <input type="number" id="custom-width-input" min="3" max="14" value="8">
+              </div>
+              <div class="dimension-control">
+                <label for="custom-height-input">Height (Rows):</label>
+                <input type="number" id="custom-height-input" min="3" max="10" value="6">
+              </div>
             </div>
             <div class="painter-actions-group">
-              <button id="btn-fill-all-holes" class="action-pill-btn secondary">Fill All Sockets</button>
+              <button id="btn-fill-all-holes" class="action-pill-btn secondary">Fill Sockets</button>
               <button id="btn-clear-all-holes" class="action-pill-btn secondary">All Solid</button>
               <button id="btn-invert-holes" class="action-pill-btn secondary">Invert</button>
             </div>
@@ -272,6 +280,21 @@
 
           <div class="painter-instructions">
             <span>💡 <strong>Click or drag</strong> on grid cells below to drill sockets (cyan) or make solid plastic obstacles (dark). Solid cells cannot hold pieces and must be navigated around!</span>
+          </div>
+
+          <!-- Fix Piece on Board Toolbar (Shown in Fix Piece Mode) -->
+          <div id="fix-piece-bar" class="fix-piece-bar" style="display: none;">
+            <div class="fix-piece-info">
+              <span class="fix-piece-label">Fixing on Board:</span>
+              <select id="fix-piece-dropdown" class="fix-piece-dropdown" title="Select piece to fix on board"></select>
+              <span id="fix-piece-current-meta" class="fix-piece-meta"></span>
+            </div>
+            <div class="fix-piece-actions">
+              <button id="btn-fix-rotate" class="action-pill-btn secondary" title="Rotate Piece 90° Clockwise (R)">↻ Rotate (R)</button>
+              <button id="btn-fix-flip" class="action-pill-btn secondary" title="Flip Piece Horizontally (F)">⇄ Flip (F)</button>
+              <button id="btn-fix-clear-all" class="action-pill-btn secondary" title="Remove all fixed pieces from board">🗑️ Clear Fixed</button>
+              <button id="btn-fix-done" class="action-pill-btn primary" title="Done fixing piece, return to regular mode">✓ Done Fixing</button>
+            </div>
           </div>
 
           <!-- Interactive 2D Grid Painter -->
@@ -286,43 +309,89 @@
               <span class="counter-divider">=</span>
               <span id="custom-beads-count" class="counter-tag beads">48 Beads</span>
               <span id="custom-balance-status" class="balance-badge perfect">✓ Perfect Fit</span>
+              <span id="custom-solvability-badge" class="balance-badge unknown">🔍 Checking...</span>
             </div>
-            <button id="btn-auto-match-pieces" class="action-pill-btn primary" title="Automatically calculate piece inventory to perfectly equal active sockets">
-              🎯 Auto-Match Sockets
-            </button>
+            <div class="balance-actions-group">
+              <button id="btn-auto-solve-board" class="action-pill-btn primary pulse" title="Checks board solvability around your fixed pieces, generates a guaranteed solution, and prepares the exact pieces in your tray">
+                ⚡ Check & Prepare Solvable Pieces
+              </button>
+            </div>
+          </div>
+
+          <!-- Challenge Starter Pieces (Lock Clues) Bar -->
+          <div class="studio-challenge-bar">
+            <div class="challenge-bar-label">
+              <span class="challenge-icon">🔒</span>
+              <div class="challenge-text-group">
+                <span class="challenge-heading">Fix Starter Pieces on Board:</span>
+                <span class="challenge-subtext">Click 'Fix Piece Mode' to place starter clue pieces directly onto the board. Pieces turn Golden 🔒 and remain fixed!</span>
+              </div>
+            </div>
+            <div class="challenge-lock-group">
+              <button id="btn-custom-lock-mode" class="action-pill-btn secondary" title="Toggle manual piece fixing mode: click holes on the board to fix chosen pieces as Golden clues!">
+                📌 Fix Piece Mode
+              </button>
+              <button id="btn-clear-fixed-clues" class="action-pill-btn secondary" title="Clear all fixed golden pieces from the board">
+                🗑️ Clear Fixed Pieces
+              </button>
+            </div>
           </div>
         </div>
 
         <!-- Tab 2: Piece Inventory -->
         <div id="tab-inventory" class="studio-tab-pane">
-          <div class="studio-section-title">Tray Piece Inventory (Multiples Allowed!)</div>
+          <div class="studio-section-title">Tray Piece Inventory (Standard & Extended A–Z)</div>
           <div class="painter-instructions">
             <span>Choose how many of each piece are available. You can have 2, 3, or more identical pieces in your custom game!</span>
           </div>
           <div id="custom-inventory-list" class="inventory-grid-list"></div>
+
+          <!-- Dedicated place to see custom user-made pieces after Z -->
+          <div class="custom-user-pieces-wrapper" style="margin-top: 22px;">
+            <div class="studio-section-title" style="display: flex; align-items: center; justify-content: space-between;">
+              <span>✨ Custom User-Made Polyspheres (Created in Forge)</span>
+              <span id="custom-user-pieces-badge" class="counter-tag beads" style="font-size: 11px;">0 Custom Shapes</span>
+            </div>
+            <div id="custom-user-pieces-list" class="inventory-grid-list"></div>
+          </div>
         </div>
 
         <!-- Tab 3: Custom Shape Creator -->
         <div id="tab-creator" class="studio-tab-pane">
           <div class="studio-section-title">Polysphere Shape Forge (5×5 Matrix)</div>
           <div class="painter-instructions">
-            <span>Click any bead on the 5×5 matrix to design your own custom Kanoodle piece!</span>
+            <span>Click any bead on the 5×5 matrix to design your own custom Kanoodle piece! All spheres must be connected together.</span>
           </div>
           <div class="creator-forge-wrap">
             <div class="creator-grid-box">
               <div id="shape-creator-grid" class="shape-creator-grid"></div>
             </div>
             <div class="creator-options-box">
-              <label class="creator-label">Piece Color:</label>
-              <div class="creator-color-palette">
-                <div class="creator-color-swatch selected" data-color="#38bdf8" style="background:#38bdf8;"></div>
-                <div class="creator-color-swatch" data-color="#ec4899" style="background:#ec4899;"></div>
-                <div class="creator-color-swatch" data-color="#10b981" style="background:#10b981;"></div>
-                <div class="creator-color-swatch" data-color="#f59e0b" style="background:#f59e0b;"></div>
-                <div class="creator-color-swatch" data-color="#8b5cf6" style="background:#8b5cf6;"></div>
-                <div class="creator-color-swatch" data-color="#ef4444" style="background:#ef4444;"></div>
-                <div class="creator-color-swatch" data-color="#06b6d4" style="background:#06b6d4;"></div>
-                <div class="creator-color-swatch" data-color="#eab308" style="background:#eab308;"></div>
+              <div class="creator-color-header">
+                <label class="creator-label" style="margin-bottom: 0;">Piece Color:</label>
+                <div class="creator-color-preview-chip" title="Active selected color">
+                  <span id="creator-color-indicator" class="color-indicator-dot" style="background:#38bdf8;"></span>
+                  <span id="creator-color-hex-val" class="color-hex-label">#38BDF8</span>
+                </div>
+              </div>
+              <div class="creator-color-row">
+                <div class="creator-color-palette">
+                  <div class="creator-color-swatch selected" data-color="#38bdf8" style="background:#38bdf8;" title="Sky Blue"></div>
+                  <div class="creator-color-swatch" data-color="#ec4899" style="background:#ec4899;" title="Hot Pink"></div>
+                  <div class="creator-color-swatch" data-color="#10b981" style="background:#10b981;" title="Emerald Green"></div>
+                  <div class="creator-color-swatch" data-color="#f59e0b" style="background:#f59e0b;" title="Warm Amber"></div>
+                  <div class="creator-color-swatch" data-color="#8b5cf6" style="background:#8b5cf6;" title="Electric Purple"></div>
+                  <div class="creator-color-swatch" data-color="#ef4444" style="background:#ef4444;" title="Crimson Red"></div>
+                  <div class="creator-color-swatch" data-color="#06b6d4" style="background:#06b6d4;" title="Cyan Neon"></div>
+                  <div class="creator-color-swatch" data-color="#eab308" style="background:#eab308;" title="Sun Yellow"></div>
+                </div>
+                <div class="creator-wheel-container" title="Pick any color from the color wheel">
+                  <label for="creator-color-wheel" class="creator-wheel-button" title="Interactive Color Wheel">
+                    <span class="wheel-icon">🎨</span>
+                    <input type="color" id="creator-color-wheel" class="creator-color-input" value="#38bdf8">
+                  </label>
+                  <span class="wheel-caption">Wheel</span>
+                </div>
               </div>
               <label for="custom-shape-name" class="creator-label" style="margin-top: 12px;">Piece Name:</label>
               <input type="text" id="custom-shape-name" class="studio-input" placeholder="e.g. Star Cross, Mini Domino">
@@ -346,8 +415,37 @@
 
         <!-- Studio Modal Actions -->
         <div class="studio-footer-actions">
-          <button id="btn-play-custom-board" class="modal-btn primary studio-launch-btn">
-            ▶ Play This Custom Board in 3D
+          <div class="studio-footer-status">
+            <span id="studio-footer-status-text" class="footer-status-text">Ready to test solvability</span>
+          </div>
+          <div class="studio-footer-buttons">
+            <button id="btn-play-custom-board" class="modal-btn primary studio-launch-btn" title="Launch 3D game and play!">
+              ▶ Play This Custom Board in 3D
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Custom Solvability Warning & Auto-Fix Modal -->
+    <div id="custom-solvability-modal" class="modal-overlay">
+      <div class="modal-card solvability-card">
+        <div class="solvability-icon-wrap">
+          <span class="solvability-icon">⚡</span>
+        </div>
+        <h3 class="modal-title">Guaranteed Solvability Check</h3>
+        <p class="modal-subtitle" id="solvability-modal-desc">
+          The custom board currently cannot be solved with your chosen piece counts (or bead count doesn't match sockets).
+        </p>
+        <div class="solvability-details-box" id="solvability-details-box">
+          Kanoodle's Exact-Cover engine can automatically adjust your piece inventory or introduce matching shapes to guarantee a 100% playable puzzle with a verified solution!
+        </div>
+        <div class="modal-actions solvability-actions">
+          <button id="btn-modal-autofix-play" class="modal-btn primary">
+            ⚡ Auto-Fix Pieces & Play Now
+          </button>
+          <button id="btn-modal-keep-editing" class="modal-btn secondary">
+            ✏️ Keep Editing
           </button>
         </div>
       </div>
@@ -358,11 +456,11 @@
   <script src="./three.min.js"></script>
   <script src="./OrbitControls.js"></script>
   <script src="./confetti.browser.min.js"></script>
-  <script src="./src/audio.js"></script>
-  <script src="./src/pieces.js"></script>
-  <script src="./src/solver.js"></script>
-  <script src="./src/custom_studio.js"></script>
-  <script src="./src/levels.js"></script>
-  <script src="./src/game.js"></script>
+  <script src="./src/audio.js?v=17"></script>
+  <script src="./src/pieces.js?v=17"></script>
+  <script src="./src/solver.js?v=17"></script>
+  <script src="./src/custom_studio.js?v=17"></script>
+  <script src="./src/levels.js?v=17"></script>
+  <script src="./src/game.js?v=17"></script>
 </body>
 </html>
